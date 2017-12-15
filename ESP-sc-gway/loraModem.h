@@ -27,7 +27,22 @@ long txDelay= 0x00;								// delay time on top of server TMST
 // Frequencies
 // Set center frequency. If in doubt, choose the first one, comment all others
 // Each "real" gateway should support the first 3 frequencies according to LoRa spec.
+#ifdef XC_DEAL
+int freqs [] = { 
+	470300000, 									// Channel 0, 868.1 MHz primary
+	470300000, 									// Channel 1, 868.3 MHz mandatory
+	470300000, 									// Channel 2, 868.5 MHz mandatory
+	470300000, 									// Channel 3, 867.1 MHz
+	470300000, 
+	470300000, 
+	470300000, 
+	470300000, 
+	470300000, 
+	470300000									// Channel, for responses gateway (10%)
+};
 
+#endif /* XC_DEAL */
+#ifndef XC_DEAL
 int freqs [] = { 
 	868100000, 									// Channel 0, 868.1 MHz primary
 	868300000, 									// Channel 1, 868.3 MHz mandatory
@@ -41,6 +56,7 @@ int freqs [] = {
 	869525000									// Channel, for responses gateway (10%)
 	// TTN defines an additional channel at 869.525Mhz using SF9 for class B. Not used
 };
+#endif /* XC_DEAL */
 uint32_t  freq = freqs[0];
 uint8_t	 ifreq = 0;								// Channel Index
 
@@ -347,7 +363,12 @@ struct LoraUp {
 
 // ----------------------------------------
 // Definitions for UDP message arriving from server
+#ifdef XC_DEAL
 #define PROTOCOL_VERSION			0x01
+#endif /* XC_DEAL */
+#ifndef XC_DEAL
+#define PROTOCOL_VERSION			0x02
+#endif /* XC_DEAL */
 #define PKT_PUSH_DATA				0x00
 #define PKT_PUSH_ACK				0x01
 #define PKT_PULL_DATA				0x02

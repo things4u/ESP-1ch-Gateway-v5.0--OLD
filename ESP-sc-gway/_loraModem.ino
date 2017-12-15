@@ -824,11 +824,16 @@ void initLoraModem()
 {
 	_state = S_INIT;
 	// Reset the transceiver chip with a pulse of 10 mSec
+	#ifndef XC_DEAL
 	digitalWrite(pins.rst, HIGH);
 	delayMicroseconds(10000);
+	#endif /* XC_DEAL */
     digitalWrite(pins.rst, LOW);
 	delayMicroseconds(10000);
-	
+	#ifdef XC_DEAL
+	digitalWrite(pins.rst, HIGH);
+	delayMicroseconds(10000);
+	#endif /* XC_DEAL */
 	// 2. Set radio to sleep
 	opmode(OPMODE_SLEEP);										// set register 0x01 to 0x00
 
@@ -982,6 +987,9 @@ void stateMachine()
 		//_state = S_SCAN;
 		writeRegister(REG_IRQ_FLAGS, 0xFF );		// Clear ALL interrupts
 		_event = 0;
+		#ifdef XC_DEAL
+		if(_state!=S_TX&&_state!=S_TXDONE)
+		#endif /* XC_DEAL */
 		return;
 	}
 	
@@ -1161,6 +1169,10 @@ void stateMachine()
 			_state = S_SCAN;
 			cadScanner();
 			writeRegister(REG_IRQ_FLAGS, (uint8_t) 0xFF);			// Reset all interrupts
+			#ifdef XC_DEAL
+			_event = 1;
+			Serial.println(F("send ack"));
+			#endif /* XC_DEAL */
 		}
 	  break; //S_CAD
 
@@ -1366,6 +1378,10 @@ void stateMachine()
 			}
 #endif
 		}
+		#ifdef XC_DEAL
+		_event = 1;
+		Serial.println(F("TX DONE "));
+		#endif /* XC_DEAL */
 	  break; // S_TXDONE	  
 
 	  

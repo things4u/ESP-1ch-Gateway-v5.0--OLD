@@ -135,7 +135,13 @@ int sendPacket(uint8_t *buf, uint8_t length)
 	else if ((w>6000000) && (w<7000000)) { tmst-=1000000; }
 	
 	const uint8_t sfTx = sfi;							// Take care, TX sf not to be mixed with SCAN
+	#ifdef XC_DEAL
+//	470300000 fix freq error
+	const uint32_t fff = (uint32_t) ((uint32_t)((ff)*1000)) * 1000;
+	#endif /* XC_DEAL */
+	#ifndef XC_DEAL
 	const uint32_t fff = freq;
+	#endif /* XC_DEAL */
 #else
 	const uint8_t sfTx = atoi(datr+2);					// Convert "SF9BW125" to 9
 	// convert double frequency (MHz) into uint32_t frequency in Hz.
@@ -204,7 +210,35 @@ int sendPacket(uint8_t *buf, uint8_t length)
 }//sendPacket
 
 
-
+/*****************************************************************************
+ Prototype    : get_freq
+ Description  : 470300000 -> 470.300000
+*****************************************************************************/
+static void get_freq(long unsigned int f, char *val ) 
+{
+	char num = 0;
+	*val = f%10000UL/1000 + '0';
+	val++;			  
+	*val = f%1000UL/100 + '0';
+	val++;			  
+	*val = f%100UL/10 + '0';
+	val++;			  
+	*val = '.';
+	val++;			  
+	*val = f%10UL/1 + '0';
+	val++;			  
+	*val = '0';
+	val++;			  
+	*val = '0';
+	val++;			  
+	*val = '0';
+	val++;			  
+	*val = '0';
+	val++;			  
+	*val = '0';
+	val++;			  
+	*val =0;
+}
 
 // ----------------------------------------------------------------------------
 // UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP
@@ -370,7 +404,12 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 		}
 #endif
 	buff_index += j;
+    #ifdef XC_DEAL
+	get_freq((long unsigned int)freq/100000,cfreq);					// XXX This can be done better
+    #endif /* XC_DEAL */
+	#ifndef XC_DEAL
 	ftoa((double)freq/1000000,cfreq,6);					// XXX This can be done better
+	#endif /* XC_DEAL */
 	j = snprintf((char *)(buff_up + buff_index), TX_BUFF_SIZE-buff_index, ",\"chan\":%1u,\"rfch\":%1u,\"freq\":%s", 0, 0, cfreq);
 	buff_index += j;
 	memcpy((void *)(buff_up + buff_index), (void *)",\"stat\":1", 9);

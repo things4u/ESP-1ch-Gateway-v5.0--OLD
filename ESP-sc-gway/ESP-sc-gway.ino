@@ -328,7 +328,73 @@ int sendNtpRequest(IPAddress timeServerIP) {
 	return(1);
 }
 
+#ifdef XC_DEAL
+const int NTP_PACKET_SIZE = 48;					// Fixed size of NTP record
+byte packetBuffer[NTP_PACKET_SIZE];
+void sendNTPpacket(IPAddress& timeServerIP) {
+  // Zeroise the buffer.
+	memset(packetBuffer, 0, NTP_PACKET_SIZE);
+	packetBuffer[0]  = 0b11100011;   			// LI, Version, Mode
+	packetBuffer[1]  = 0;						// Stratum, or type of clock
+	packetBuffer[2]  = 6;						// Polling Interval
+	packetBuffer[3]  = 0xEC;						// Peer Clock Precision
+	// 8 bytes of zero for Root Delay & Root Dispersion
+	packetBuffer[12] = 49;
+	packetBuffer[13] = 0x4E;
+	packetBuffer[14] = 49;
+	packetBuffer[15] = 52;	
 
+	Udp.beginPacket(timeServerIP, (int) 123);	// NTP Server and Port
+
+	if ((Udp.write((char *)packetBuffer, NTP_PACKET_SIZE)) != NTP_PACKET_SIZE) {
+		die("sendNtpPacket:: Error write");
+	}
+	else {
+		// Success
+	}
+	Udp.endPacket();
+}
+
+// ----------------------------------------------------------------------------
+// Get the NTP time from one of the time servers
+// Note: As this function is called from SyncINterval in the background
+//	make sure we have no blocking calls in this function
+// ----------------------------------------------------------------------------
+time_t getNtpTime()
+{
+	const int NTP_PACKET_SIZE = 48;					// Fixed size of NTP record
+	gwayConfig.ntps++;
+	WiFi.hostByName(NTP_TIMESERVER, ntpServer);	// Get IP address of Timeserver
+    sendNTPpacket(ntpServer);					// Send the request
+    uint32_t beginWait = millis();
+    while (millis() - beginWait < 1000) 
+	{
+		int size = Udp.parsePacket();
+		if ( size >= NTP_PACKET_SIZE ) {
+			Udp.read(packetBuffer, NTP_PACKET_SIZE);
+			// Extract seconds portion.
+			unsigned long secs;
+			secs  = packetBuffer[40] << 24;
+			secs |= packetBuffer[41] << 16;
+			secs |= packetBuffer[42] <<  8;
+			secs |= packetBuffer[43];
+			Udp.flush();Serial.println(F("getNtpTime:: read OK"));
+			return secs - 2208988800UL + NTP_TIMEZONES * SECS_PER_HOUR;				
+			// UTC is 1 TimeZone correction when no daylight saving time
+		}
+		delay(10);								// Wait 10 millisecs, allow kernel to act when necessary
+    }
+
+	Udp.flush();
+	
+	// If we are here, we could not read the time from internet
+	// So increase the counter
+	gwayConfig.ntpErr++;
+	return 0; 									// return 0 if unable to get the time
+}
+
+#endif /* XC_DEAL */
+#ifndef XC_DEAL
 // ----------------------------------------------------------------------------
 // Get the NTP time from one of the time servers
 // Note: As this function is called from SyncINterval in the background
@@ -382,6 +448,7 @@ time_t getNtpTime()
 	if (debug>0) Serial.println(F("getNtpTime:: read failed"));
 	return(0); 										// return 0 if unable to get the time
 }
+#endif /* XC_DEAL */
 
 // ----------------------------------------------------------------------------
 // Set up regular synchronization of NTP server and the local time.
@@ -1290,6 +1357,9 @@ void setup() {
 	display.drawString(0, 24, "READY");
 	display.display();
 #endif
+	#ifdef XC_DEAL
+	sendstat(); 									// Show the status message and send to server
+	#endif /* XC_DEAL */
 
 	Serial.println(F("--------------------------------------"));
 }//setup
