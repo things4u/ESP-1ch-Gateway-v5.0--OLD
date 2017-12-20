@@ -852,6 +852,16 @@ void initLoraModem()
     writeRegister(REG_LNA, (uint8_t) LNA_MAX_GAIN);  						// 0x0C, 0x23
 	
     uint8_t version = readRegister(REG_VERSION);				// Read the LoRa chip version id
+
+#if 0
+	uint8_t count = 1000;
+	while(count--)
+    {
+        uint8_t version1 = readRegister(REG_VERSION);				// Read the LoRa chip version id
+		Serial.println(version1,HEX);
+        yield();
+    }
+#endif// endif 0
     if (version == 0x22) {
         // sx1272
 #if DUSB>=2
