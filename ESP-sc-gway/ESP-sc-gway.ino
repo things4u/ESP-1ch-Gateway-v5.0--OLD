@@ -88,6 +88,9 @@ extern "C" {
 SSD1306  display(OLED_ADDR, OLED_SDA, OLED_SCL);// i2c ADDR & SDA, SCL on wemos
 #endif
 
+#ifdef XC_DEAL
+#include "xc_led.h"
+#endif /* XC_DEAL */
 int debug=1;									// Debug level! 0 is no msgs, 1 normal, 2 extensive
 
 // You can switch webserver off if not necessary but probably better to leave it in.
@@ -666,7 +669,7 @@ int readUdp(int packetSize)
 	uint8_t buff[32]; 						// General buffer to use for UDP, set to 64
 	uint8_t buff_down[RX_BUFF_SIZE];		// Buffer for downstream
 
-	if (WlanConnect(10) < 0) {
+	if (WlanConnect(1) < 0) {
 #if DUSB>=1
 			Serial.print(F("readdUdp: ERROR connecting to WLAN"));
 			if (debug>=2) Serial.flush();
@@ -902,7 +905,7 @@ int readUdp(int packetSize)
 int sendUdp(IPAddress server, int port, uint8_t *msg, int length) {
 
 	// Check whether we are conected to Wifi and the internet
-	if (WlanConnect(3) < 0) {
+	if (WlanConnect(1) < 0) {
 #if DUSB>=1
 		Serial.print(F("sendUdp: ERROR connecting to WiFi"));
 		Serial.flush();
@@ -1216,7 +1219,7 @@ void setup() {
 	wifi_station_set_hostname( hostname );
 	
 	// Setup WiFi UDP connection. Give it some time and retry 50 times..
-	while (WlanConnect(50) < 0) {
+	while (WlanConnect(1) < 0) {
 		Serial.print(F("Error Wifi network connect "));
 		Serial.println();
 		yield();
@@ -1241,6 +1244,9 @@ void setup() {
 	pinMode(pins.rst, OUTPUT);
     pinMode(pins.dio0, INPUT);								// This pin is interrupt
 	pinMode(pins.dio1, INPUT);								// This pin is interrupt
+	#ifdef XC_DEAL
+//	led_init();
+	#endif /* XC_DEAL */
 	//pinMode(pins.dio2, INPUT);
 
 	// Init the SPI pins
@@ -1441,7 +1447,7 @@ void loop ()
 
 	// If we are not connected, try to connect.
 	// We will not read Udp in this loop cycle then
-	if (WlanConnect(1) < 0) {
+	if (WlanConnect(0) < 0) {
 #if DUSB>=1
 			Serial.print(F("loop: ERROR reconnect WLAN"));
 #endif

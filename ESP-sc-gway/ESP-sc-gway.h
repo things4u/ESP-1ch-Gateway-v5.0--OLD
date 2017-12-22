@@ -99,12 +99,12 @@
 #define _STRICT_1CH	1
 
 // Allows configuration through WifiManager AP setup. Must be 0 or 1					
-#define WIFIMANAGER 0
+#define WIFIMANAGER 1
 
 // Define the name of the accesspoint if the gateway is in accesspoint mode (is
 // getting WiFi SSID and password using WiFiManager)
-#define AP_NAME "ESP8266-Gway-Things4U"
-#define AP_PASSWD "MyPw01!"
+#define AP_NAME "huangdezeng"
+#define AP_PASSWD "123456"
 							
 
 // Defines whether the gateway will also report sensor/status value on MQTT
@@ -225,8 +225,8 @@ struct wpas {
 //
 wpas wpa[] = {
 	{ "" , "" },							// Reserved for WiFi Manager
-//	{ "aap", "aapPasswd" },
-    { "zhixingli", "xc87654321xc" },
+	{ "aap", "aapPasswd" },
+//    { "zhixingli", "xc87654321xc" },
 	{ "ape", "apePasswd" }
 };
 
