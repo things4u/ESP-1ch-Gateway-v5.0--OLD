@@ -498,8 +498,10 @@ int WlanReadWpa() {
 	pass.toCharArray(passBuf,pass.length()+1);
 	Serial.print(F("WlanReadWpa: ")); Serial.print(ssidBuf); Serial.print(F(", ")); Serial.println(passBuf);
 	
+#if 1
 	strcpy(wpa[0].login, ssidBuf);				// XXX changed from wpa[0][0] = ssidBuf
 	strcpy(wpa[0].passw, passBuf);
+#endif// endif 0
 	
 	Serial.print(F("WlanReadWpa: <")); 
 	Serial.print(wpa[0].login); 				// XXX
@@ -1219,7 +1221,7 @@ void setup() {
 	wifi_station_set_hostname( hostname );
 	
 	// Setup WiFi UDP connection. Give it some time and retry 50 times..
-	while (WlanConnect(1) < 0) {
+	while (WlanConnect(2) < 0) {
 		Serial.print(F("Error Wifi network connect "));
 		Serial.println();
 		yield();
@@ -1447,7 +1449,7 @@ void loop ()
 
 	// If we are not connected, try to connect.
 	// We will not read Udp in this loop cycle then
-	if (WlanConnect(0) < 0) {
+	if (WlanConnect(1) < 0) {
 #if DUSB>=1
 			Serial.print(F("loop: ERROR reconnect WLAN"));
 #endif

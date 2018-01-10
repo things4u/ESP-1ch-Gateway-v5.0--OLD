@@ -103,7 +103,7 @@
 
 // Define the name of the accesspoint if the gateway is in accesspoint mode (is
 // getting WiFi SSID and password using WiFiManager)
-#define AP_NAME "huangdezeng"
+#define AP_NAME "zenghi"
 #define AP_PASSWD "123456"
 							
 
@@ -225,9 +225,9 @@ struct wpas {
 //
 wpas wpa[] = {
 	{ "" , "" },							// Reserved for WiFi Manager
-	{ "aap", "aapPasswd" },
+//	{ "aap", "aapPasswd" },
 //    { "zhixingli", "xc87654321xc" },
-	{ "ape", "apePasswd" }
+//	{ "ape", "apePasswd" }
 };
 
 // For asserting and testing the following defines are used.

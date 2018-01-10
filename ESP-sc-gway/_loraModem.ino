@@ -341,8 +341,8 @@ void setPow(uint8_t powe)
 	ASSERT((powe>=2)&&(powe<=15));
 	
 	uint8_t pac = (0x80 | (powe & 0xF)) & 0xFF;
-	writeRegister(REG_PAC, (uint8_t)pac);								// set 0x09 to pac
-	
+//	writeRegister(REG_PAC, (uint8_t)pac);								// set 0x09 to pac
+	writeRegister(REG_PAC, (uint8_t)0xff);								// set 0x09 to pac
 	// XXX Power settings for CFG_sx1272 are different
 	
 	return;
@@ -905,7 +905,9 @@ void initLoraModem()
 	writeRegister(REG_PARAMP, (readRegister(REG_PARAMP) & 0xF0) | 0x08); // set PA ramp-up time 50 uSec
 	
 	// Set 0x4D PADAC for SX1276 ; XXX register is 0x5a for sx1272
-	writeRegister(REG_PADAC_SX1276,  0x84); 					// set 0x4D (PADAC) to 0x84
+//	writeRegister(REG_PADAC_SX1276,  0x84); 					// set 0x4D (PADAC) to 0x84
+	writeRegister(REG_PADAC_SX1276,  0x87); 					// set 0x4D (PADAC) to 0x84
+
 	//writeRegister(REG_PADAC, readRegister(REG_PADAC)|0x4);
 	
 	// Reset interrupt Mask, enable all interrupts

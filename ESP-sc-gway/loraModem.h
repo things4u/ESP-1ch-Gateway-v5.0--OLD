@@ -29,16 +29,27 @@ long txDelay= 0x00;								// delay time on top of server TMST
 // Each "real" gateway should support the first 3 frequencies according to LoRa spec.
 #ifdef XC_DEAL
 int freqs [] = { 
-	470300000, 									// Channel 0, 868.1 MHz primary
-	470300000, 									// Channel 1, 868.3 MHz mandatory
-	470300000, 									// Channel 2, 868.5 MHz mandatory
-	470300000, 									// Channel 3, 867.1 MHz
-	470300000, 
-	470300000, 
-	470300000, 
-	470300000, 
-	470300000, 
-	470300000									// Channel, for responses gateway (10%)
+  470300000,                                  // Channel 0, 868.1 MHz primary
+  470300000,                                  // Channel 1, 868.3 MHz mandatory
+  470300000,                                  // Channel 2, 868.5 MHz mandatory
+  470300000,                                  // Channel 3, 867.1 MHz
+  470300000, 
+  470300000, 
+  470300000, 
+  470300000, 
+  470300000, 
+  470300000                                   // Channel, for responses gateway (10%
+
+//	470700000, 									// Channel 0, 868.1 MHz primary
+//	470700000, 									// Channel 1, 868.3 MHz mandatory
+//	470700000, 									// Channel 2, 868.5 MHz mandatory
+//	470700000, 									// Channel 3, 867.1 MHz
+//	470700000, 
+//	470700000, 
+//	470700000, 
+//	470700000, 
+//	470700000, 
+//	470700000									// Channel, for responses gateway (10%)
 };
 
 #endif /* XC_DEAL */
