@@ -18,6 +18,7 @@
 // too much code compiled and loaded on your ESP8266.
 //
 // ----------------------------------------------------------------------------------------
+#define XC_DEAL
 
 #define VERSION "V.5.0.2.H; 171118a nOLED, 15/10"
 
@@ -40,7 +41,7 @@
 // This parameters contains the default value of SF, the actual version can be set with
 // the webserver and it will be stored in SPIFF
 // NOTE: The frequency is set in the loraModem.h file and is default 868.100000 MHz.
-#define _SPREADING SF9
+#define _SPREADING SF12//SF9
 
 // Channel Activity Detection
 // This function will scan for valid LoRa headers and determine the Spreading 
@@ -73,7 +74,7 @@
 //	1: HALLARD
 //	2: COMRESULT pin out
 //	3: Other, define your own in loraModem.h
-#define _PIN_OUT 1
+#define _PIN_OUT 2//1
 
 // Gather statistics on sensor and Wifi status
 // 0= No statistics
@@ -95,15 +96,15 @@
 // NOTE: If your node has only one frequency enabled and one SF, you must set this to 1
 //		in order to receive downlink messages
 // NOTE: In all other cases, value 0 works for most gateways with CAD enabled
-#define _STRICT_1CH	0
+#define _STRICT_1CH	1
 
 // Allows configuration through WifiManager AP setup. Must be 0 or 1					
-#define WIFIMANAGER 0
+#define WIFIMANAGER 1
 
 // Define the name of the accesspoint if the gateway is in accesspoint mode (is
 // getting WiFi SSID and password using WiFiManager)
-#define AP_NAME "ESP8266-Gway-Things4U"
-#define AP_PASSWD "MyPw01!"
+#define AP_NAME "zenghi"
+#define AP_PASSWD "123456"
 							
 
 // Defines whether the gateway will also report sensor/status value on MQTT
@@ -143,7 +144,8 @@
 #define CONFIGFILE "/gwayConfig.txt"
 
 // Set the Server Settings (IMPORTANT)
-#define _LOCUDPPORT 1700					// UDP port of gateway! Often 1700 or 1701 is used for upstream comms
+//#define _LOCUDPPORT 1700					// UDP port of gateway! Often 1700 or 1701 is used for upstream comms
+#define _LOCUDPPORT 6837					// UDP port of gateway! Often 1700 or 1701 is used for upstream comms
 
 // Timing
 #define _MSG_INTERVAL 15
@@ -154,8 +156,11 @@
 
 // MQTT definitions, these settings should be standard for TTN
 // and need not changing
-#define _TTNPORT 1700						// Standard port for TTN
-#define _TTNSERVER "router.eu.thethings.network"
+//#define _TTNPORT 1700						// Standard port for TTN
+//#define _TTNSERVER "router.eu.thethings.network"
+//#define _TTNSERVER "home.xwqzly.com"
+#define _TTNPORT    6837
+#define _TTNSERVER "120.39.63.133"
 
 // If you have a second back-end server defined such as Semtech or loriot.io
 // your can define _THINGPORT and _THINGSERVER with your own value.
@@ -167,11 +172,13 @@
 //#define _THINGSERVER "yourServer.com"		// Server URL of the LoRa-udp.js handler
 
 // Gateway Ident definitions
-#define _DESCRIPTION "My ESP Gateway"
-#define _EMAIL "whoami@hotmail.com"
+#define _DESCRIPTION "wifiadv  Gateway"
+#define _EMAIL "309966755@qq.com"
 #define _PLATFORM "ESP8266"
-#define _LAT 52.00
-#define _LON 5.900
+//#define _LAT 52.00 //52.00
+//#define _LON 5.900 //5.900
+#define _LAT 26.02
+#define _LON 119.410
 #define _ALT 00
 
 // ntp
@@ -218,8 +225,9 @@ struct wpas {
 //
 wpas wpa[] = {
 	{ "" , "" },							// Reserved for WiFi Manager
-	{ "aap", "aapPasswd" },
-	{ "ape", "apePasswd" }
+//	{ "aap", "aapPasswd" },
+//    { "zhixingli", "xc87654321xc" },
+//	{ "ape", "apePasswd" }
 };
 
 // For asserting and testing the following defines are used.

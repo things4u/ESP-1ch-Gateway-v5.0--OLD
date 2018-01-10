@@ -341,8 +341,8 @@ void setPow(uint8_t powe)
 	ASSERT((powe>=2)&&(powe<=15));
 	
 	uint8_t pac = (0x80 | (powe & 0xF)) & 0xFF;
-	writeRegister(REG_PAC, (uint8_t)pac);								// set 0x09 to pac
-	
+//	writeRegister(REG_PAC, (uint8_t)pac);								// set 0x09 to pac
+	writeRegister(REG_PAC, (uint8_t)0xff);								// set 0x09 to pac
 	// XXX Power settings for CFG_sx1272 are different
 	
 	return;
@@ -824,11 +824,16 @@ void initLoraModem()
 {
 	_state = S_INIT;
 	// Reset the transceiver chip with a pulse of 10 mSec
+	#ifndef XC_DEAL
 	digitalWrite(pins.rst, HIGH);
 	delayMicroseconds(10000);
+	#endif /* XC_DEAL */
     digitalWrite(pins.rst, LOW);
 	delayMicroseconds(10000);
-	
+	#ifdef XC_DEAL
+	digitalWrite(pins.rst, HIGH);
+	delayMicroseconds(10000);
+	#endif /* XC_DEAL */
 	// 2. Set radio to sleep
 	opmode(OPMODE_SLEEP);										// set register 0x01 to 0x00
 
@@ -847,6 +852,16 @@ void initLoraModem()
     writeRegister(REG_LNA, (uint8_t) LNA_MAX_GAIN);  						// 0x0C, 0x23
 	
     uint8_t version = readRegister(REG_VERSION);				// Read the LoRa chip version id
+
+#if 0
+	uint8_t count = 1000;
+	while(count--)
+    {
+        uint8_t version1 = readRegister(REG_VERSION);				// Read the LoRa chip version id
+		Serial.println(version1,HEX);
+        yield();
+    }
+#endif// endif 0
     if (version == 0x22) {
         // sx1272
 #if DUSB>=2
@@ -890,7 +905,9 @@ void initLoraModem()
 	writeRegister(REG_PARAMP, (readRegister(REG_PARAMP) & 0xF0) | 0x08); // set PA ramp-up time 50 uSec
 	
 	// Set 0x4D PADAC for SX1276 ; XXX register is 0x5a for sx1272
-	writeRegister(REG_PADAC_SX1276,  0x84); 					// set 0x4D (PADAC) to 0x84
+//	writeRegister(REG_PADAC_SX1276,  0x84); 					// set 0x4D (PADAC) to 0x84
+	writeRegister(REG_PADAC_SX1276,  0x87); 					// set 0x4D (PADAC) to 0x84
+
 	//writeRegister(REG_PADAC, readRegister(REG_PADAC)|0x4);
 	
 	// Reset interrupt Mask, enable all interrupts
@@ -982,6 +999,9 @@ void stateMachine()
 		//_state = S_SCAN;
 		writeRegister(REG_IRQ_FLAGS, 0xFF );		// Clear ALL interrupts
 		_event = 0;
+		#ifdef XC_DEAL
+		if(_state!=S_TX&&_state!=S_TXDONE)
+		#endif /* XC_DEAL */
 		return;
 	}
 	
@@ -1161,6 +1181,10 @@ void stateMachine()
 			_state = S_SCAN;
 			cadScanner();
 			writeRegister(REG_IRQ_FLAGS, (uint8_t) 0xFF);			// Reset all interrupts
+			#ifdef XC_DEAL
+			_event = 1;
+			Serial.println(F("send ack"));
+			#endif /* XC_DEAL */
 		}
 	  break; //S_CAD
 
@@ -1366,6 +1390,10 @@ void stateMachine()
 			}
 #endif
 		}
+		#ifdef XC_DEAL
+		_event = 1;
+		Serial.println(F("TX DONE "));
+		#endif /* XC_DEAL */
 	  break; // S_TXDONE	  
 
 	  

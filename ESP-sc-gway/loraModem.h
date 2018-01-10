@@ -22,12 +22,38 @@
 // Our code should correct the server timing
 long txDelay= 0x00;								// delay time on top of server TMST
 
+//#define SPISPEED 8000000						// was 50000/50KHz < 10MHz
 #define SPISPEED 8000000						// was 50000/50KHz < 10MHz
-
 // Frequencies
 // Set center frequency. If in doubt, choose the first one, comment all others
 // Each "real" gateway should support the first 3 frequencies according to LoRa spec.
+#ifdef XC_DEAL
+int freqs [] = { 
+  470300000,                                  // Channel 0, 868.1 MHz primary
+  470300000,                                  // Channel 1, 868.3 MHz mandatory
+  470300000,                                  // Channel 2, 868.5 MHz mandatory
+  470300000,                                  // Channel 3, 867.1 MHz
+  470300000, 
+  470300000, 
+  470300000, 
+  470300000, 
+  470300000, 
+  470300000                                   // Channel, for responses gateway (10%
 
+//	470700000, 									// Channel 0, 868.1 MHz primary
+//	470700000, 									// Channel 1, 868.3 MHz mandatory
+//	470700000, 									// Channel 2, 868.5 MHz mandatory
+//	470700000, 									// Channel 3, 867.1 MHz
+//	470700000, 
+//	470700000, 
+//	470700000, 
+//	470700000, 
+//	470700000, 
+//	470700000									// Channel, for responses gateway (10%)
+};
+
+#endif /* XC_DEAL */
+#ifndef XC_DEAL
 int freqs [] = { 
 	868100000, 									// Channel 0, 868.1 MHz primary
 	868300000, 									// Channel 1, 868.3 MHz mandatory
@@ -41,6 +67,7 @@ int freqs [] = {
 	869525000									// Channel, for responses gateway (10%)
 	// TTN defines an additional channel at 869.525Mhz using SF9 for class B. Not used
 };
+#endif /* XC_DEAL */
 uint32_t  freq = freqs[0];
 uint8_t	 ifreq = 0;								// Channel Index
 
@@ -87,10 +114,10 @@ struct pins {
 #elif _PIN_OUT==2
 // For ComResult gateway PCB use the following settings
 struct pins {
-	uint8_t dio0=5;		// GPIO5 / D1. Dio0 used for one frequency and one SF
-	uint8_t dio1=4;		// GPIO4 / D2. Used for CAD, may or not be shared with DIO0
+	uint8_t dio0=4;		// GPIO5 / D1. Dio0 used for one frequency and one SF
+	uint8_t dio1=5;		// GPIO4 / D2. Used for CAD, may or not be shared with DIO0
 	uint8_t dio2=0;		// GPIO0 / D3. Used for frequency hopping, don't care
-	uint8_t ss=15;		// GPIO15 / D8. Select pin connected to GPIO15
+	uint8_t ss=16;		// GPIO15 / D8. Select pin connected to GPIO15
 	uint8_t rst=0;		// GPIO0 / D3. Reset pin not used	
 } pins;
 #else
@@ -347,7 +374,12 @@ struct LoraUp {
 
 // ----------------------------------------
 // Definitions for UDP message arriving from server
+#ifdef XC_DEAL
 #define PROTOCOL_VERSION			0x01
+#endif /* XC_DEAL */
+#ifndef XC_DEAL
+#define PROTOCOL_VERSION			0x02
+#endif /* XC_DEAL */
 #define PKT_PUSH_DATA				0x00
 #define PKT_PUSH_ACK				0x01
 #define PKT_PULL_DATA				0x02

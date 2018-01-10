@@ -88,6 +88,9 @@ extern "C" {
 SSD1306  display(OLED_ADDR, OLED_SDA, OLED_SCL);// i2c ADDR & SDA, SCL on wemos
 #endif
 
+#ifdef XC_DEAL
+#include "xc_led.h"
+#endif /* XC_DEAL */
 int debug=1;									// Debug level! 0 is no msgs, 1 normal, 2 extensive
 
 // You can switch webserver off if not necessary but probably better to leave it in.
@@ -328,7 +331,73 @@ int sendNtpRequest(IPAddress timeServerIP) {
 	return(1);
 }
 
+#ifdef XC_DEAL
+const int NTP_PACKET_SIZE = 48;					// Fixed size of NTP record
+byte packetBuffer[NTP_PACKET_SIZE];
+void sendNTPpacket(IPAddress& timeServerIP) {
+  // Zeroise the buffer.
+	memset(packetBuffer, 0, NTP_PACKET_SIZE);
+	packetBuffer[0]  = 0b11100011;   			// LI, Version, Mode
+	packetBuffer[1]  = 0;						// Stratum, or type of clock
+	packetBuffer[2]  = 6;						// Polling Interval
+	packetBuffer[3]  = 0xEC;						// Peer Clock Precision
+	// 8 bytes of zero for Root Delay & Root Dispersion
+	packetBuffer[12] = 49;
+	packetBuffer[13] = 0x4E;
+	packetBuffer[14] = 49;
+	packetBuffer[15] = 52;	
 
+	Udp.beginPacket(timeServerIP, (int) 123);	// NTP Server and Port
+
+	if ((Udp.write((char *)packetBuffer, NTP_PACKET_SIZE)) != NTP_PACKET_SIZE) {
+		die("sendNtpPacket:: Error write");
+	}
+	else {
+		// Success
+	}
+	Udp.endPacket();
+}
+
+// ----------------------------------------------------------------------------
+// Get the NTP time from one of the time servers
+// Note: As this function is called from SyncINterval in the background
+//	make sure we have no blocking calls in this function
+// ----------------------------------------------------------------------------
+time_t getNtpTime()
+{
+	const int NTP_PACKET_SIZE = 48;					// Fixed size of NTP record
+	gwayConfig.ntps++;
+	WiFi.hostByName(NTP_TIMESERVER, ntpServer);	// Get IP address of Timeserver
+    sendNTPpacket(ntpServer);					// Send the request
+    uint32_t beginWait = millis();
+    while (millis() - beginWait < 1000) 
+	{
+		int size = Udp.parsePacket();
+		if ( size >= NTP_PACKET_SIZE ) {
+			Udp.read(packetBuffer, NTP_PACKET_SIZE);
+			// Extract seconds portion.
+			unsigned long secs;
+			secs  = packetBuffer[40] << 24;
+			secs |= packetBuffer[41] << 16;
+			secs |= packetBuffer[42] <<  8;
+			secs |= packetBuffer[43];
+			Udp.flush();Serial.println(F("getNtpTime:: read OK"));
+			return secs - 2208988800UL + NTP_TIMEZONES * SECS_PER_HOUR;				
+			// UTC is 1 TimeZone correction when no daylight saving time
+		}
+		delay(10);								// Wait 10 millisecs, allow kernel to act when necessary
+    }
+
+	Udp.flush();
+	
+	// If we are here, we could not read the time from internet
+	// So increase the counter
+	gwayConfig.ntpErr++;
+	return 0; 									// return 0 if unable to get the time
+}
+
+#endif /* XC_DEAL */
+#ifndef XC_DEAL
 // ----------------------------------------------------------------------------
 // Get the NTP time from one of the time servers
 // Note: As this function is called from SyncINterval in the background
@@ -382,6 +451,7 @@ time_t getNtpTime()
 	if (debug>0) Serial.println(F("getNtpTime:: read failed"));
 	return(0); 										// return 0 if unable to get the time
 }
+#endif /* XC_DEAL */
 
 // ----------------------------------------------------------------------------
 // Set up regular synchronization of NTP server and the local time.
@@ -428,8 +498,10 @@ int WlanReadWpa() {
 	pass.toCharArray(passBuf,pass.length()+1);
 	Serial.print(F("WlanReadWpa: ")); Serial.print(ssidBuf); Serial.print(F(", ")); Serial.println(passBuf);
 	
+#if 1
 	strcpy(wpa[0].login, ssidBuf);				// XXX changed from wpa[0][0] = ssidBuf
 	strcpy(wpa[0].passw, passBuf);
+#endif// endif 0
 	
 	Serial.print(F("WlanReadWpa: <")); 
 	Serial.print(wpa[0].login); 				// XXX
@@ -599,7 +671,7 @@ int readUdp(int packetSize)
 	uint8_t buff[32]; 						// General buffer to use for UDP, set to 64
 	uint8_t buff_down[RX_BUFF_SIZE];		// Buffer for downstream
 
-	if (WlanConnect(10) < 0) {
+	if (WlanConnect(1) < 0) {
 #if DUSB>=1
 			Serial.print(F("readdUdp: ERROR connecting to WLAN"));
 			if (debug>=2) Serial.flush();
@@ -835,7 +907,7 @@ int readUdp(int packetSize)
 int sendUdp(IPAddress server, int port, uint8_t *msg, int length) {
 
 	// Check whether we are conected to Wifi and the internet
-	if (WlanConnect(3) < 0) {
+	if (WlanConnect(1) < 0) {
 #if DUSB>=1
 		Serial.print(F("sendUdp: ERROR connecting to WiFi"));
 		Serial.flush();
@@ -1149,7 +1221,7 @@ void setup() {
 	wifi_station_set_hostname( hostname );
 	
 	// Setup WiFi UDP connection. Give it some time and retry 50 times..
-	while (WlanConnect(50) < 0) {
+	while (WlanConnect(2) < 0) {
 		Serial.print(F("Error Wifi network connect "));
 		Serial.println();
 		yield();
@@ -1174,6 +1246,9 @@ void setup() {
 	pinMode(pins.rst, OUTPUT);
     pinMode(pins.dio0, INPUT);								// This pin is interrupt
 	pinMode(pins.dio1, INPUT);								// This pin is interrupt
+	#ifdef XC_DEAL
+//	led_init();
+	#endif /* XC_DEAL */
 	//pinMode(pins.dio2, INPUT);
 
 	// Init the SPI pins
@@ -1290,6 +1365,9 @@ void setup() {
 	display.drawString(0, 24, "READY");
 	display.display();
 #endif
+	#ifdef XC_DEAL
+	sendstat(); 									// Show the status message and send to server
+	#endif /* XC_DEAL */
 
 	Serial.println(F("--------------------------------------"));
 }//setup
