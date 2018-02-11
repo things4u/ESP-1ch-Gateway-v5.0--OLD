@@ -1,6 +1,6 @@
 # Single Channel LoRaWAN Gateway
 
-Version 4.0.7, July 22, 2017  
+Version 5.0.2, November 18, 2017  
 Author: M. Westenberg (mw12554@hotmail.com)  
 Copyright: M. Westenberg (mw12554@hotmail.com)  
 
@@ -15,6 +15,27 @@ Maintained by Maarten Westenberg (mw12554@hotmail.com)
 
 
 # Release Notes
+
+New Features in version 5.0.5 (Feb 2, 2018)
+- Change timer functions to now() and secons instead of millis() as the latter one overflows once 
+every 50 days.
+- Add more debug information
+- Simplified and enhanced the State Machine function
+
+New features in version 5.0.4 (January 1, 2018)
+- Cleanup of the State machine
+- Separate file for oLED work, support for 1.3" SH3006 chips based oLED.
+- Still not supported: Multi Frequency works, but with loss of #packages, 
+  and some packages are recognizeg at the wrong frequency (but since they are so close that could happen).
+- In-line documenattion cleaned up
+
+New features in version 5.0.1 (November 18, 2017)
+- Changed the state machine to run in user space only
+- No Watchdog Resets anymore
+- For each SF, percentage of such packages received of total packages
+- OTAA and downlink work (again) although not always
+- Nober of packages per hour displayed in webserver
+- All Serial communication only when DUSB==1 is defined at compile time
 
 New features in version 4.0.9 (August 11, 2017)
 

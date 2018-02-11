@@ -1,6 +1,6 @@
 # Single Channel LoRaWAN Gateway
 
-Version 5.0.1, November, 2017  
+Version 5.0.3, December 09, 2017  
 Author: M. Westenberg (mw12554@hotmail.com)  
 Copyright: M. Westenberg (mw12554@hotmail.com)  
 
@@ -20,21 +20,25 @@ The software implements a standard LoRa gateway with the following exceptions on
 
 -  This LoRa gateway is not a full gateway but it implements just a one-channel/one frequency gateway. 
 The minimum amount of frequencies supported by a full gateway is 3, most support 9 or more frequencies.
-This software started as a proof-of-concept to prove that a single low-cost RRFM95 chip which was present in almost every
-LoRa node in Europe could be used as a cheap alternative to the far more expensive full gateways that were 
-making use of the SX1301 chip.
+This software started as a proof-of-concept to prove that a single low-cost RRFM95 chip which was present 
+in almost every LoRa node in Europe could be used as a cheap alternative to the far more expensive full 
+gateways that were making use of the SX1301 chip.
 
-- As the software of this gateway will often be used during the development phase of a project or in demo situations, 
-the software is flexible and can be easily configured according to environment or customer requirements. 
-There are two ways of interacting with the software: 1. Modifying the ESP-sc-gway.h file at compile time allows the 
-administrator to set almost all parameters. 2. Using the webinterface (http://<gateway_IP>) will allow 
-administrators to set and reset several of the parameters at runtime.
+- As the software of this gateway will often be used during the development phase of a project or in 
+demo situations, the software is flexible and can be easily configured according to environment or 
+customer requirements. There are two ways of interacting with the software: 
+1. Modifying the ESP-sc-gway.h file at compile time allows the administrator to set almost all parameters. 
+2. Using the webinterface (http://<gateway_IP>) will allow administrators to set and reset several of the 
+parameters at runtime.
+
+Full documentation of the Single Channel Gateway is found at things4u.github.io, please look at the Hardware Guide 
+under the Gateway chapter.
 
 
 ## testing
 
 The single channel gateway has been tested on a gateway with the Wemos D1 Mini, using a HopeRF RFM95W transceiver.  
-The LoRa nodes tested are:
+The LoRa nodes tested againts this gateway are:
 
 - TeensyLC with HopeRF RFM95 radio
 - Arduino Pro-Mini (default Armega328 model, 8MHz 3.3V and 16MHz 3.3V)
@@ -72,7 +76,7 @@ coming in on the Serial monitor.
 There are two ways of changing the configuration of the single channel gateway:
 
 1. Changing the ESP-sc-gway.h file at compile-time
-2. Run the http://<gateway-IP> web interface to change setting at complie time.
+2. Run the http://<gateway-IP> web interface to change settings at run time.
 
 
 ## Editing the ESP-sc-gway.h file
@@ -88,6 +92,14 @@ However the memory available for heap and variables is limited to about 80K byte
 The user is advised to turn off functions not used in order to save on memory usage. 
 If the heap drops below 18 KBytes some functions may not behave as expected (in extreme case the program may crash).
 
+
+### Setting USB
+
+The user can determine whether or not the USB console is used for output messages.
+When setting DUSB to 0 all output by Serial is disabled 
+(actually the Serial statements are not included in the code).
+
+ \#define DUSB 1
 
 ### Debug
 
@@ -301,7 +313,7 @@ Please note that they are NOT part of the ESP 1channel gateway and may have thei
 However, these libraries are not part of the single-channel Gateway software.
 
 
-# Connections
+# Pin Connections
 
 See http://things4u.github.io in the hardware section for building and connection instructions.
 
@@ -310,7 +322,7 @@ See http://things4u.github.io in the hardware section for building and connectio
 
 The following things are still on my wish list to make to the single channel gateway:  
 
-- Receive downstream message with commands form the server. These can be used to configure
+- Receive downstream message with commands from the server. These can be used to configure
   the gateway through downlink messages (such as setting the SF)
 - Support for ESP32 and RFM95 on 915 MHz
 - Use the SPIFFS for storing .css files
@@ -321,4 +333,5 @@ The following things are still on my wish list to make to the single channel gat
 # License
 
 The source files of the gateway sketch in this repository is made available under the MIT
-license. The libraries included in this repository are included for convenience only and all have their own license, and are not part of the ESP 1ch gateway code.
+license. The libraries included in this repository are included for convenience only and all have their own license, 
+and are not part of the ESP 1ch gateway code.

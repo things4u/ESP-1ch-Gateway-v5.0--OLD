@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.1
-// Date: 2017-11-15
+// Version 5.0.6
+// Date: 2018-02-12
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -39,7 +39,7 @@ struct espGwayConfig {
 	uint8_t debug;				// range 0 to 4
 	
 	bool cad;					// is CAD enabled?
-	bool hop;					// Is HOP enabled (Note: SHould be disabled)
+	bool hop;					// Is HOP enabled (Note: Should be disabled)
 	bool isNode;				// Is gateway node enabled
 	bool refresh;				// Is WWW browser refresh enabled
 	

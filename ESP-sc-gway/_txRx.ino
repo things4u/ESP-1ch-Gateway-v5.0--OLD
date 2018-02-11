@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.1
-// Date: 2017-11-15
+// Version 5.0.6
+// Date: 2018-02-12
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -148,7 +148,7 @@ int sendPacket(uint8_t *buf, uint8_t length)
 	
 	LoraDown.payLoad = payLoad;
 	LoraDown.payLength = payLength;
-	LoraDown.tmst = tmst;
+	LoraDown.tmst = tmst;								// Downstream in milis
 	LoraDown.sfTx = sfTx;
 	LoraDown.powe = powe;
 	LoraDown.fff = fff;
@@ -254,13 +254,26 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 #if STATISTICS >= 1
 	// Receive statistics
 	for (int m=( MAX_STAT -1); m>0; m--) statr[m]=statr[m-1];
-	statr[0].tmst = millis();
+	statr[0].tmst = now();
 	statr[0].ch= ifreq;
 	statr[0].prssi = prssi - rssicorr;
 #if RSSI==1
 	statr[0].rssi = _rssi - rssicorr;
 #endif
 	statr[0].sf = LoraUp.sf;
+#if DUSB>=2
+	if (debug>=0) {
+		if ((message[4] != 0x26) || (message[1]==0x99)) {
+			Serial.print(F("addr="));
+			for (int i=messageLength; i>0; i--) {
+				if (message[i]<16) Serial.print('0');
+				Serial.print(message[i],HEX);
+				Serial.print(' ');
+			}
+			Serial.println();
+		}
+	}
+#endif
 	statr[0].node = ( message[1]<<24 | message[2]<<16 | message[3]<<8 | message[4] );
 
 #if STATISTICS >= 2
@@ -277,7 +290,7 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 
 #if DUSB>=1	
 	if (debug>=1) {
-		Serial.print(F("pRSSI: "));
+		Serial.print(F("buildPacket:: pRSSI="));
 		Serial.print(prssi-rssicorr);
 		Serial.print(F(" RSSI: "));
 		Serial.print(_rssi - rssicorr);
@@ -297,31 +310,43 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 #endif
 
 // Show received message status on OLED display
-#if OLED==1
-      display.clear();
-      display.setFont(ArialMT_Plain_16);
-      display.setTextAlignment(TEXT_ALIGN_LEFT);
-      char timBuff[20];
-      sprintf(timBuff, "%02i:%02i:%02i", hour(), minute(), second());
-      display.drawString(0, 0, "Time: " );
-      display.drawString(40, 0, timBuff);
-      display.drawString(0, 16, "RSSI: " );
-      display.drawString(40, 16, String(prssi-rssicorr));
-      display.drawString(70, 16, ",SNR: " );
-      display.drawString(110, 16, String(SNR) );
+#if OLED>=1
+    char timBuff[20];
+    sprintf(timBuff, "%02i:%02i:%02i", hour(), minute(), second());
+	
+//	char addrBuff[20;
+//	if (message[4] < 0x10) display.drawString( 40, 32, "0"+String(message[4], HEX)); else display.drawString( 40, 32, String(message[4], HEX));
+//	if (message[3] < 0x10) display.drawString( 61, 32, "0"+String(message[3], HEX)); else display.drawString( 61, 32, String(message[3], HEX));
+//	if (message[2] < 0x10) display.drawString( 82, 32, "0"+String(message[2], HEX)); else display.drawString( 82, 32, String(message[2], HEX));
+//	if (message[1] < 0x10) display.drawString(103, 32, "0"+String(message[1], HEX)); else display.drawString(103, 32, String(message[1], HEX));
+//	sprintf(addrBuff, "%02X,:%02X:%02X:%02X", message[4], message[3], message[2], message[1]);
+	
+    display.clear();
+    display.setFont(ArialMT_Plain_16);
+    display.setTextAlignment(TEXT_ALIGN_LEFT);
+
+//	msg_oLED(timBuff, prssi-rssicorr, SNR, message)
+	
+    display.drawString(0, 0, "Time: " );
+    display.drawString(40, 0, timBuff);
+    display.drawString(0, 16, "RSSI: " );
+    display.drawString(40, 16, String(prssi-rssicorr));
+    display.drawString(70, 16, ",SNR: " );
+    display.drawString(110, 16, String(SNR) );
 	  
-	  display.drawString(0, 32, "Addr: " );
+	display.drawString(0, 32, "Addr: " );
 	  
-      if (message[4] < 0x10) display.drawString( 40, 32, "0"+String(message[4], HEX)); else display.drawString( 40, 32, String(message[4], HEX));
-	  if (message[3] < 0x10) display.drawString( 61, 32, "0"+String(message[3], HEX)); else display.drawString( 61, 32, String(message[3], HEX));
-	  if (message[2] < 0x10) display.drawString( 82, 32, "0"+String(message[2], HEX)); else display.drawString( 82, 32, String(message[2], HEX));
-	  if (message[1] < 0x10) display.drawString(103, 32, "0"+String(message[1], HEX)); else display.drawString(103, 32, String(message[1], HEX));
+    if (message[4] < 0x10) display.drawString( 40, 32, "0"+String(message[4], HEX)); else display.drawString( 40, 32, String(message[4], HEX));
+	if (message[3] < 0x10) display.drawString( 61, 32, "0"+String(message[3], HEX)); else display.drawString( 61, 32, String(message[3], HEX));
+	if (message[2] < 0x10) display.drawString( 82, 32, "0"+String(message[2], HEX)); else display.drawString( 82, 32, String(message[2], HEX));
+	if (message[1] < 0x10) display.drawString(103, 32, "0"+String(message[1], HEX)); else display.drawString(103, 32, String(message[1], HEX));
 	  
-      display.drawString(0, 48, "LEN: " );
-      display.drawString(40, 48, String((int)messageLength) );
-      display.display();
-	  yield();
-#endif
+    display.drawString(0, 48, "LEN: " );
+    display.drawString(40, 48, String((int)messageLength) );
+    display.display();
+	yield();
+
+#endif //OLED>=1
 			
 	int j;
 	
@@ -336,11 +361,19 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 	}
 #endif
 	base64_encode(b64, (char *) message, messageLength);// max 341
-
+	// start composing datagram with the header 
+	uint8_t token_h = (uint8_t)rand(); 					// random token
+	uint8_t token_l = (uint8_t)rand(); 					// random token
+	
 	// pre-fill the data buffer with fixed fields
 	buff_up[0] = PROTOCOL_VERSION;						// 0x01 still
-	buff_up[3] = PKT_PUSH_DATA;							// 0x00
 
+
+	buff_up[1] = token_h;
+	buff_up[2] = token_l;
+	
+	buff_up[3] = PKT_PUSH_DATA;							// 0x00
+	
 	// READ MAC ADDRESS OF ESP8266, and insert 0xFF 0xFF in the middle
 	buff_up[4]  = MAC_array[0];
 	buff_up[5]  = MAC_array[1];
@@ -351,11 +384,7 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 	buff_up[10] = MAC_array[4];
 	buff_up[11] = MAC_array[5];
 
-	// start composing datagram with the header 
-	uint8_t token_h = (uint8_t)rand(); 					// random token
-	uint8_t token_l = (uint8_t)rand(); 					// random token
-	buff_up[1] = token_h;
-	buff_up[2] = token_l;
+
 	buff_index = 12; 									// 12-byte binary (!) header
 
 	// start of JSON structure that will make payload
@@ -473,7 +502,7 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 // ----------------------------------------------------------------------------
 int receivePacket()
 {
-	uint8_t buff_up[TX_BUFF_SIZE]; 					// buffer to compose the upstream packet to backend server
+	uint8_t buff_up[TX_BUFF_SIZE]; 						// buffer to compose the upstream packet to backend server
 	long SNR;
 	uint8_t message[128] = { 0x00 };					// MSG size is 128 bytes for rx
 	uint8_t messageLength = 0;

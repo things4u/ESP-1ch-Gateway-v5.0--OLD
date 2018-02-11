@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017 Maarten Westenberg 
-// Version 5.0.1
-// Date: 2017-11-15
+// Version 5.0.6
+// Date: 2018-02-12
 //
 // Based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 // and many others.

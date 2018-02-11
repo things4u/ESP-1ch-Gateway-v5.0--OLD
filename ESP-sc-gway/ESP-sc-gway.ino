@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.1
-// Date: 2017-11-15
+// Version 5.0.6
+// Date: 2018-02-12
 // Author: Maarten Westenberg (mw12554@hotmail.com)
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1-ch gateway
@@ -62,8 +62,10 @@ extern "C" {
 #include <mutex.h>								// See lib directory
 #endif
 
+// Local include files
 #include "loraModem.h"
 #include "loraFiles.h"
+#include "oLED.h"
 
 
 #if WIFIMANAGER>0
@@ -83,10 +85,7 @@ extern "C" {
 #include "AES-128_V10.h"
 #endif
 
-#if OLED==1
-#include "SSD1306.h"
-SSD1306  display(OLED_ADDR, OLED_SDA, OLED_SCL);// i2c ADDR & SDA, SCL on wemos
-#endif
+
 
 int debug=1;									// Debug level! 0 is no msgs, 1 normal, 2 extensive
 
@@ -102,14 +101,13 @@ byte currentMode = 0x81;
 //char b64[256];
 bool sx1272 = true;								// Actually we use sx1276/RFM95
 
-uint32_t cp_nb_rx_rcv;
-uint32_t cp_nb_rx_ok;
-uint32_t cp_nb_rx_bad;
-uint32_t cp_nb_rx_nocrc;
+uint32_t cp_nb_rx_rcv;							// Number of messages received by gateway
+uint32_t cp_nb_rx_ok;							// Number of messages received OK
+uint32_t cp_nb_rx_bad;							// Number of messages received bad
+uint32_t cp_nb_rx_nocrc;						// Number of messages without CRC
 uint32_t cp_up_pkt_fwd;
 
 uint8_t MAC_array[6];
-//char MAC_char[19];
 
 // ----------------------------------------------------------------------------
 //
@@ -138,7 +136,12 @@ IPAddress ttnServer;							// IP Address of thethingsnetwork server
 IPAddress thingServer;
 
 WiFiUDP Udp;
-uint32_t stattime = 0;							// last time we sent a stat message to server
+
+time_t startTime = 0;							// The time in seconds since 1970 that the server started
+												// be aware that UTP time has to succeed for meaningful values.
+												// We use this variable since millis() is reset every 50 days...
+												
+uint32_t statTime = 0;							// last time we sent a stat message to server
 uint32_t pulltime = 0;							// last time we sent a pull_data request to server
 uint32_t lastTmst = 0;
 #if A_SERVER==1
@@ -322,7 +325,7 @@ int sendNtpRequest(IPAddress timeServerIP) {
 	
 	if (!sendUdp( (IPAddress) timeServerIP, (int) 123, packetBuffer, NTP_PACKET_SIZE)) {
 		gwayConfig.ntpErr++;
-		gwayConfig.ntpErrTime = millis();
+		gwayConfig.ntpErrTime = now();
 		return(0);	
 	}
 	return(1);
@@ -364,9 +367,9 @@ time_t getNtpTime()
 				secs  = packetBuffer[40] << 24;
 				secs |= packetBuffer[41] << 16;
 				secs |= packetBuffer[42] <<  8;
-				secs |= packetBuffer[43];\
+				secs |= packetBuffer[43];
 				// UTC is 1 TimeZone correction when no daylight saving time
-				return(secs - 2208988800UL + NTP_TIMEZONES * SECS_PER_HOUR);
+				return(secs - 2208988800UL + NTP_TIMEZONES * SECS_IN_HOUR);
 			}
 			Udp.flush();	
 		}
@@ -378,8 +381,12 @@ time_t getNtpTime()
 	// If we are here, we could not read the time from internet
 	// So increase the counter
 	gwayConfig.ntpErr++;
-	gwayConfig.ntpErrTime = millis();
-	if (debug>0) Serial.println(F("getNtpTime:: read failed"));
+	gwayConfig.ntpErrTime = now();
+#if DUSB>=1
+	if (debug>0) {
+		Serial.println(F("getNtpTime:: read failed"));
+	}
+#endif
 	return(0); 										// return 0 if unable to get the time
 }
 
@@ -477,7 +484,7 @@ int WlanWriteWpa( char* ssid, char *pass) {
 //	It is a matter of returning to the main loop() asap and make sure in next loop
 //	the reconnect is done first thing.
 // Parameters:
-//		int maxTtry: Number of reties we do:
+//		int maxTry: Number of reties we do:
 //		0: Try forever. Which is normally what we want except for Setup maybe
 //		1: Try once and if unsuccessful return(0);
 //		x: Try x times
@@ -539,9 +546,16 @@ int WlanConnect(int maxTry) {
 	}
 	
 #if DUSB>=1
-	if (i>0) {
-		Serial.print(F("WLAN reconnected"));
-		Serial.println();
+	if (i==0) {
+		if (debug>=3) {
+			Serial.print(F("WLAN connected"));
+			Serial.println();
+		}
+		return(1);
+	}
+	else {
+		Serial.print(F("WLAN retry="));
+		Serial.println(i);
 	}
 #endif
   
@@ -643,7 +657,7 @@ int readUdp(int packetSize)
 		}
 #endif
 		gwayConfig.ntpErr++;
-		gwayConfig.ntpErrTime = millis();
+		gwayConfig.ntpErrTime = now();
 		return(0);
 	}
 	
@@ -1093,16 +1107,12 @@ void setup() {
 	delay(100);
 	Serial.flush();
 	delay(500);
-#if MUTEX_SPI==1
-	CreateMutux(&inSPI);
-#endif
-#if MUTEX_SPO==1
-	CreateMutux(&inSPO);
-#endif
-#if MUTEX_INT==1
-	CreateMutux(&inIntr);
-#endif
+
 	if (SPIFFS.begin()) Serial.println(F("SPIFFS loaded success"));
+	
+#if SPIFF_FORMAT>=1
+	SPIFFS.format();								// Normally disabled. Enable only when SPIFFS corrupt
+#endif
 
 	Serial.print(F("Assert="));
 #if defined CFG_noassert
@@ -1111,14 +1121,8 @@ void setup() {
 	Serial.println(F("Do Asserts"));
 #endif
 
-#if OLED==1
-	// Initialising the UI will init the display too.
-	display.init();
-	display.flipScreenVertically();
-	display.setFont(ArialMT_Plain_24);
-	display.setTextAlignment(TEXT_ALIGN_LEFT);
-	display.drawString(0, 24, "STARTING");
-	display.display();
+#if OLED>=1
+	init_oLED();
 #endif
 
 	delay(500);
@@ -1227,9 +1231,14 @@ void setup() {
 #endif
 
 	// Set the NTP Time
+	// As long as the time has not been set we try to set the time.
 #if NTP_INTR==1
 	setupTime();											// Set NTP time host and interval
 #else
+	// If not using the standard libraries, do a manual setting
+	// of the time. This meyhod works more reliable than the 
+	// interrupt driven method.
+	
 	//setTime((time_t)getNtpTime());
 	while (timeStatus() == timeNotSet) {
 		Serial.println(F("setupTime:: Time not set (yet)"));
@@ -1238,12 +1247,14 @@ void setup() {
 		newTime = (time_t)getNtpTime();
 		if (newTime != 0) setTime(newTime);
 	}
+	// When we are here we succeeded in getting the time
+	startTime = now();										// Time in seconds
 	Serial.print("Time: "); printTime();
 	Serial.println();
 
 	writeGwayCfg(CONFIGFILE );
 	Serial.println(F("Gateway configuration saved"));
-#endif
+#endif //NTP_INTR
 
 #if A_SERVER==1	
 	// Setup the webserver
@@ -1264,6 +1275,7 @@ void setup() {
 		_state = S_RX;
 		rxLoraModem();
 	}
+	LoraUp.payLoad[0]= 0;
 	LoraUp.payLength = 0;						// Init the length to 0
 
 	// init interrupt handlers, which are shared for GPIO15 / D8, 
@@ -1283,12 +1295,9 @@ void setup() {
 	writeConfig( CONFIGFILE, &gwayConfig);					// Write config
 
 	// activate OLED display
-#if OLED==1
-	// Initialising the UI will init the display too.
-	display.clear();
-	display.setFont(ArialMT_Plain_24);
-	display.drawString(0, 24, "READY");
-	display.display();
+#if OLED>=1
+	acti_oLED();
+	addr_oLED();
 #endif
 
 	Serial.println(F("--------------------------------------"));
@@ -1313,32 +1322,36 @@ void setup() {
 // ----------------------------------------------------------------------------
 void loop ()
 {
-	uint32_t nowSeconds;
+	uint32_t uSeconds;									// micro seconds
 	int packetSize;
-	
-	nowTime = micros();
-	nowSeconds = (uint32_t) millis() /1000;
+	uint32_t nowSeconds = now();
 	
 	// check for event value, which means that an interrupt has arrived.
 	// In this case we handle the interrupt ( e.g. message received)
 	// in userspace in loop().
 	//
-	if (_event != 0x00) {
-		stateMachine();					// start the state machine
-		_event = 0;						// reset value
-		return;							// Restart loop
+	while (_event != 0x00) {							// 
+		stateMachine();									// start the state machine
 	}
 	
-	// After a quiet period, make sure we reinit the modem.
-	// XXX Still have to measure quiet period in stat[0];
-	// For the moment we use msgTime
-	if ( (((nowTime - statr[0].tmst) / 1000000) > _MSG_INTERVAL ) &&
-		(msgTime < statr[0].tmst)) {
+	// After a quiet period, make sure we reinit the modem and state machine.
+	// The interval is in seconds (about 10 seconds) as this re-init
+	// is a heavy operation. 
+	// SO it will kick in if there are not many messages for the gatway.
+	// Note: Be carefull that it does not happen too often in normal operation.
+	//
+	if ( ((nowSeconds - statr[0].tmst) > _MSG_INTERVAL ) &&
+		(msgTime < statr[0].tmst) ) 
+	{
 #if DUSB>=1
-		Serial.print('r');
+		if (debug>=1) Serial.println("REINIT");
 #endif
-		initLoraModem();
-		if (_cad) {
+		initLoraModem();								// XXX 26/12/2017
+		if (_hop) {
+			_state = S_SCAN;
+			hop();
+		}
+		else if (_cad) {
 			_state = S_SCAN;
 			cadScanner();
 		}
@@ -1348,7 +1361,7 @@ void loop ()
 		}
 		writeRegister(REG_IRQ_FLAGS_MASK, (uint8_t) 0x00);
 		writeRegister(REG_IRQ_FLAGS, 0xFF);				// Reset all interrupt flags
-		msgTime = nowTime;
+		msgTime = nowSeconds;
 	}
 	
 #if A_OTA==1
@@ -1373,7 +1386,7 @@ void loop ()
 	// We will not read Udp in this loop cycle then
 	if (WlanConnect(1) < 0) {
 #if DUSB>=1
-			Serial.print(F("loop: ERROR reconnect WLAN"));
+			Serial.println(F("loop: ERROR reconnect WLAN"));
 #endif
 			yield();
 			return;										// Exit loop if no WLAN connected
@@ -1382,11 +1395,11 @@ void loop ()
 	// So if we are connected 
 	// Receive UDP PUSH_ACK messages from server. (*2, par. 3.3)
 	// This is important since the TTN broker will return confirmation
-	// messages on UDP for every message sent by the gateway. So we have to consume them..
+	// messages on UDP for every message sent by the gateway. So we have to consume them.
 	// As we do not know when the server will respond, we test in every loop.
 	//
 	else {
-		while( (packetSize = Udp.parsePacket()) > 0) {		// Length of UDP message waiting
+		while( (packetSize = Udp.parsePacket()) > 0) {
 #if DUSB>=2
 			Serial.println(F("loop:: readUdp calling"));
 #endif
@@ -1400,55 +1413,19 @@ void loop ()
 			}
 			// Now we know we succesfull received message from host
 			else {
-				_event=1;									// Could be done double if more messages received
+				_event=1;								// Could be done double if more messages received
 			}
 			//yield();
 		}
+		//yield();				// XXX 26/12/2017
 	}
 	
-	yield();
-	
-	
-	// The next section is emergency only. If posible we hop() in the state machine.
-	// If hopping is enabled, and by lack of timer, we hop()
-	// XXX Experimental, 2.5 ms between hops max
-	//
-
-	if ((_hop) && (((long)(nowTime - hopTime)) > 7500)) {
-	
-		if ((_state == S_SCAN) && (sf==SF12)) {
-#if DUSB>=1
-			if (debug>=1) Serial.println(F("loop:: hop"));
-#endif
-			hop(); 
-		}
-		
-		// XXX section below does not work without further work. It is the section with the MOST
-		// influence on the HOP mode of operation (which is somewhat unexpected)
-		// If we keep staying in another state, reset
-		else if (((long)(nowTime - hopTime)) > 100000) {
-		
-			_state= S_RX;		
-			rxLoraModem();
-			
-			hop();
-
-			if (_cad) { 
-				_state= S_SCAN; 
-				cadScanner(); 
-			}
-		}
-		else if (debug>=3) { Serial.print(F(" state=")); Serial.println(_state); } 
-		inHop = false;									// Reset re-entrane protection of HOP
-		yield();
-	}
-	
-
+	yield();					// XXX 26/12/2017
 
 	// stat PUSH_DATA message (*2, par. 4)
 	//	
 
-    if ((nowSeconds - stattime) >= _STAT_INTERVAL) {	// Wake up every xx seconds
+    if ((nowSeconds - statTime) >= _STAT_INTERVAL) {	// Wake up every xx seconds
 #if DUSB>=1
 		if (debug>=2) {
 			Serial.print(F("STAT <"));
@@ -1481,7 +1458,7 @@ void loop ()
 			}
 		}
 #endif
-		stattime = nowSeconds;
+		statTime = nowSeconds;
     }
 	
 	yield();
@@ -1489,7 +1466,7 @@ void loop ()
 	
 	// send PULL_DATA message (*2, par. 4)
 	//
-	nowSeconds = (uint32_t) millis() /1000;
+	nowSeconds = now();
     if ((nowSeconds - pulltime) >= _PULL_INTERVAL) {	// Wake up every xx seconds
 #if DUSB>=1
 		if (debug>=1) {
@@ -1525,8 +1502,8 @@ void loop ()
 #if NTP_INTR==0
 	// Set the time in a manual way. Do not use setSyncProvider
 	// as this function may collide with SPI and other interrupts
-	yield();
-	nowSeconds = (uint32_t) millis() /1000;
+	yield();											// 26/12/2017
+	nowSeconds = now();
 	if (nowSeconds - ntptimer >= _NTP_INTERVAL) {
 		yield();
 		time_t newTime;
@@ -1535,4 +1512,6 @@ void loop ()
 		ntptimer = nowSeconds;
 	}
 #endif
-}
+	
+
+}//loop

@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.1
-// Date: 2017-11-15
+// Version 5.0.6
+// Date: 2018-02-12
 //
 // Based on work done by Thomas Telkamp for Raspberry PI 1ch gateway and many others.
 // Contibutions of Dorijan Morelj and Andreas Spies for OLED support.
@@ -19,7 +19,7 @@
 //
 // ----------------------------------------------------------------------------------------
 
-#define VERSION "V.5.0.2.H; 171118a nOLED, 15/10"
+#define VERSION "V.5.0.6.H; 170212a"
 
 // This value of DEBUG determines whether some parts of code get compiled.
 // Also this is the initial value of debug parameter. 
@@ -32,6 +32,11 @@
 // Set to 1 it will prin all user level messages (with correct debug set)
 // If set to 2 it will also print interrupt messages (not recommended)
 #define DUSB 1
+
+// Define whether we should do a formatting of SPIFFS when starting the gateway
+// This is usually a good idea if the webserver is interrupted halfway a writing
+// operation.
+#define SPIFF_FORMAT 0
 
 // The spreading factor is the most important parameter to set for a single channel
 // gateway. It specifies the speed/datarate in which the gateway and node communicate.
@@ -72,7 +77,8 @@
 // If your pin definitions are different, update the loraModem.h file to reflect these settings.
 //	1: HALLARD
 //	2: COMRESULT pin out
-//	3: Other, define your own in loraModem.h
+//	3: ESP32 pin out
+//	4: Other, define your own in loraModem.h
 #define _PIN_OUT 1
 
 // Gather statistics on sensor and Wifi status
@@ -102,8 +108,9 @@
 
 // Define the name of the accesspoint if the gateway is in accesspoint mode (is
 // getting WiFi SSID and password using WiFiManager)
+// NOTE: Change the password for your OWN environment to be secure
 #define AP_NAME "ESP8266-Gway-Things4U"
-#define AP_PASSWD "MyPw01!"
+#define AP_PASSWD "ttnAutoPw"
 							
 
 // Defines whether the gateway will also report sensor/status value on MQTT
@@ -120,11 +127,13 @@
 
 // Will we use Mutex or not?
 // +SPI is input for SPI, SPO is output for SPI
-#define MUTEX 1
-#define MUTEX_SPI 0
-#define MUTEX_SPO 0
-// Protect the interrupt module
-#define MUTEX_INT 0
+#define MUTEX 0
+
+// Define if OLED Display is connected to i2c
+// OLED==1; 0.9 Oled Screen based on SSD1306
+// OLED==2;	1"3 Oled screens for Wemos, 128x64 SH1106
+#define OLED 2								// Make define 1 on line if you have an OLED display connected
+
 
 // Define whether we want to manage the gateway over UDP (next to management 
 // thru webinterface).
@@ -146,7 +155,7 @@
 #define _LOCUDPPORT 1700					// UDP port of gateway! Often 1700 or 1701 is used for upstream comms
 
 // Timing
-#define _MSG_INTERVAL 15
+#define _MSG_INTERVAL 15					// Reset timer in seconds
 #define _PULL_INTERVAL 55					// PULL_DATA messages to server to get downstream in milliseconds
 #define _STAT_INTERVAL 120					// Send a 'stat' message to server
 #define _NTP_INTERVAL 3600					// How often do we want time NTP synchronization
@@ -163,25 +172,25 @@
 // Port is UDP port in this program
 //
 // Default for testing: Switch off
-//#define _THINGPORT 1700					// dash.westenberg.org:8057
-//#define _THINGSERVER "yourServer.com"		// Server URL of the LoRa-udp.js handler
+#define _THINGPORT 57084					// dash.westenberg.org:8057
+#define _THINGSERVER "westenberg.org"		// Server URL of the LoRa-udp.js handler
 
 // Gateway Ident definitions
-#define _DESCRIPTION "My ESP Gateway"
-#define _EMAIL "whoami@hotmail.com"
+#define _DESCRIPTION "ESP Gateway"
+#define _EMAIL "mw12554@hotmail.com"
 #define _PLATFORM "ESP8266"
-#define _LAT 52.00
-#define _LON 5.900
-#define _ALT 00
+#define _LAT 52
+#define _LON 5.9
+#define _ALT 1
 
 // ntp
 #define NTP_TIMESERVER "nl.pool.ntp.org"	// Country and region specific
 #define NTP_TIMEZONES	1					// How far is our Timezone from UTC (excl daylight saving/summer time)
-#define SECS_PER_HOUR	3600
+#define SECS_IN_HOUR	3600
 #define NTP_INTR 0							// Do NTP processing with interrupts or in loop();
 
 #if GATEWAYNODE==1
-#define _DEVADDR { 0x26, 0x00, 0x00 0x00 }
+#define _DEVADDR { 0x26, 0x01, 0x00, 0x00 }
 #define _APPSKEY { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
 #define _NWKSKEY { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
 #define _SENSOR_INTERVAL 300
@@ -193,12 +202,6 @@
 
 // Serial Port speed
 #define _BAUDRATE 115200					// Works for debug messages to serial momitor
-
-// if OLED Display is connected to i2c
-#define OLED 0								// Make define 1 on line if you have an OLED display connected
-#define OLED_SCL 5							// GPIO5 / D1
-#define OLED_SDA 4							// GPIO4 / D2
-#define OLED_ADDR 0x3C						// Default 0x3C for 0.9", for 1.3" it is 0x78
 
 // Wifi definitions
 // WPA is an array with SSID and password records. Set WPA size to number of entries in array
@@ -218,8 +221,8 @@ struct wpas {
 //
 wpas wpa[] = {
 	{ "" , "" },							// Reserved for WiFi Manager
-	{ "aap", "aapPasswd" },
-	{ "ape", "apePasswd" }
+	{ "aap", "noot" },
+	{ "mies", "teun" }
 };
 
 // For asserting and testing the following defines are used.

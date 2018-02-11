@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.1
-// Date: 2017-11-15
+// Version 5.0.6
+// Date: 2018-02-12
 //
 // 	based on work done by many people and making use of several libraries.
 //
@@ -69,16 +69,21 @@ static void printHEX(char * hexa, const char sep, String& response)
 
 // ----------------------------------------------------------------------------
 // stringTime
+// Print the time t into the String reponse. t is of type time_t in seconds.
 // Only when RTC is present we print real time values
-// t contains number of milli seconds since system started that the event happened.
+// t contains number of seconds since system started that the event happened.
 // So a value of 100 would mean that the event took place 1 minute and 40 seconds ago
 // ----------------------------------------------------------------------------
-static void stringTime(unsigned long t, String& response) {
+static void stringTime(time_t t, String& response) {
 
 	if (t==0) { response += "--"; return; }
 	
 	// now() gives seconds since 1970
-	time_t eventTime = now() - ((millis()-t)/1000);
+	// as millis() does rotate every 50 days
+	// So we need another timing parameter
+	time_t eventTime = t;
+	
+	// Rest is standard
 	byte _hour   = hour(eventTime);
 	byte _minute = minute(eventTime);
 	byte _second = second(eventTime);
@@ -139,7 +144,8 @@ static void setVariables(const char *cmd, const char *arg) {
 		if (! _hop) { 
 			ifreq=0; 
 			freq=freqs[0]; 
-			rxLoraModem(); 
+			rxLoraModem();
+			cadScanner();
 		}
 		writeGwayCfg(CONFIGFILE);									// Save configuration to file
 	}
@@ -272,7 +278,7 @@ static void openWebPage()
 
 	response +="Version: "; response+=VERSION;
 	response +="<br>ESP alive since "; 					// STARTED ON
-	stringTime(1, response);
+	stringTime(startTime, response);
 
 	response +=", Uptime: ";							// UPTIME
 	uint32_t secs = millis()/1000;
@@ -289,7 +295,7 @@ static void openWebPage()
 	response += String() + _second;
 	
 	response +="<br>Current time    "; 					// CURRENT TIME
-	stringTime(millis(), response);
+	stringTime(now(), response);
 	response +="<br>";
 	
 	server.sendContent(response);
@@ -529,9 +535,11 @@ static void statisticsData()
 	
 	response +="<tr><td class=\"cell\">Packages Uplink Total</td>";
 		response +="<td class=\"cell\">" + String(cp_nb_rx_rcv) + "</td>";
-		response +="<td class=\"cell\">" + String((cp_nb_rx_rcv*3600)/(millis()/1000)) + "</td></tr>";
+		response +="<td class=\"cell\">" + String((cp_nb_rx_rcv*3600)/(now() - startTime)) + "</td></tr>";
+		
 	response +="<tr><td class=\"cell\">Packages Uplink OK </td><td class=\"cell\">";
 		response +=cp_nb_rx_ok; response+="</tr>";
+		
 	response +="<tr><td class=\"cell\">Packages Downlink</td><td class=\"cell\">"; 
 		response +=cp_up_pkt_fwd; response+="</tr>";
 
@@ -577,8 +585,9 @@ static void sensorData()
 	response += "<tr>";
 	response += "<th class=\"thead\">Time</th>";
 	response += "<th class=\"thead\">Node</th>";
-	response += "<th class=\"thead\" colspan=\"2\">Channel</th>";
-	response += "<th class=\"thead\" style=\"width: 50px;\">SF</th>";
+	response += "<th class=\"thead\" style=\"width: 20px;\">C</th>";
+	response += "<th class=\"thead\">Freq</th>";
+	response += "<th class=\"thead\" style=\"width: 40px;\">SF</th>";
 	response += "<th class=\"thead\" style=\"width: 50px;\">pRSSI</th>";
 #if RSSI==1
 	if (debug > 1) {
@@ -594,7 +603,7 @@ static void sensorData()
 		response = "";
 		
 		response += String() + "<tr><td class=\"cell\">";
-		stringTime(statr[i].tmst, response);
+		stringTime((statr[i].tmst), response);			// XXX Change tmst not to be millis() dependent
 		response += "</td>";
 		response += String() + "<td class=\"cell\">";
 		printHEX((char *)(& (statr[i].node)),' ',response);
@@ -785,7 +794,8 @@ void setupWWW()
 	// Reset the statistics
 	server.on("/RESET", []() {
 		Serial.println(F("RESET"));
-		cp_nb_rx_rcv = 0;
+		startTime= now() - 1;					// Reset all timers too	
+		cp_nb_rx_rcv = 0;						// Reset package statistics
 		cp_nb_rx_ok = 0;
 		cp_up_pkt_fwd = 0;
 #if STATISTICS >= 1

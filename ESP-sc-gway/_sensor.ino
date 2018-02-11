@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017 Maarten Westenberg
-// Verison 5.0.1
-// Date: 2017-11-15
+// Verison 5.0.6
+// Date: 2018-02-12
 //
 // All rights reserved. This program and the accompanying materials
 // are made available under the terms of the MIT License
@@ -470,8 +470,6 @@ int sensorPacket() {
 	// 10 value when restarting the gateway.
 	//
 	if (( frameCount % 10)==0) writeGwayCfg(CONFIGFILE);
-	
-	//yield();								// XXX Can we remove this here?
 	
 	if (buff_index > 512) {
 		if (debug>0) Serial.println(F("sensorPacket:: ERROR buffer size too large"));

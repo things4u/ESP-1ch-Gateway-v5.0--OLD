@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.1
-// Date: 2017-11-15
+// Version 5.0.6
+// Date: 2018-02-12
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -35,13 +35,14 @@
 // ----------------------------------------------------------------------------
 int readConfig(const char *fn, struct espGwayConfig *c) {
 
-	Serial.println(F("readConfig:: Starting"));
+	Serial.print(F("readConfig:: Starting "));
 
 	if (!SPIFFS.exists(fn)) {
 		Serial.print(F("ERROR:: readConfig, file does not exist "));
 		Serial.println(fn);
 		return(-1);
 	}
+
 	File f = SPIFFS.open(fn, "r");
 	if (!f) {
 		Serial.println(F("ERROR:: SPIFFS open failed"));
@@ -50,6 +51,12 @@ int readConfig(const char *fn, struct espGwayConfig *c) {
 
 	while (f.available()) {
 		
+#if DUSB>=1
+		if (debug>=0) {
+			Serial.print('.');
+		}
+#endif
+
 		String id =f.readStringUntil('=');
 		String val=f.readStringUntil('\n');
 		
@@ -127,6 +134,12 @@ int readConfig(const char *fn, struct espGwayConfig *c) {
 		}
 	}
 	f.close();
+#if DUSB>=1
+	if (debug>=0) {
+		Serial.println('#');
+	}
+#endif
+	Serial.println();
 	return(1);
 }
 
