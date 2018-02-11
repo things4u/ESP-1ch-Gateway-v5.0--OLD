@@ -1,6 +1,6 @@
 # Single Channel LoRaWAN Gateway
 
-Version 5.0.2, November 18, 2017  
+Version 5.0.6, February 11, 2017  
 Author: M. Westenberg (mw12554@hotmail.com)  
 Copyright: M. Westenberg (mw12554@hotmail.com)  
 
@@ -15,6 +15,12 @@ Maintained by Maarten Westenberg (mw12554@hotmail.com)
 
 
 # Release Notes
+
+New features in version 5.0.6 (Feb 11, 2018)
+- All timer functions that show lists on website etc are now based on now() en NTP, 
+the realtime functions needed for LoRa messages are still based on micros() or millis()
+- Change some USB debug messages
+- Added to the documentation of the README.md
 
 New Features in version 5.0.5 (Feb 2, 2018)
 - Change timer functions to now() and secons instead of millis() as the latter one overflows once 

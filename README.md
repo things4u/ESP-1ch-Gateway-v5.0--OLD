@@ -1,6 +1,6 @@
 # Single Channel LoRaWAN Gateway
 
-Version 5.0.3, December 09, 2017  
+Version 5.0.6, February 12, 2017  
 Author: M. Westenberg (mw12554@hotmail.com)  
 Copyright: M. Westenberg (mw12554@hotmail.com)  
 
@@ -44,6 +44,8 @@ The LoRa nodes tested againts this gateway are:
 - Arduino Pro-Mini (default Armega328 model, 8MHz 3.3V and 16MHz 3.3V)
 - ESP8266 based nodes with RFM95 transceivers.
 
+The code has been tested on at least 8 separate gateway boards both based on the Hallard and the Comresult boards. 
+I'm still working on the ESP32 pin-out and functions (expected soon).
 
 # Getting Started
 
@@ -101,6 +103,7 @@ When setting DUSB to 0 all output by Serial is disabled
 
  \#define DUSB 1
 
+
 ### Debug
 
 The user can set the initial value of the DEBUG parameter. 
@@ -108,6 +111,26 @@ Setting this parameter will also detemine some settings of the webserver.
 
  \#define DEBUG 1
 
+ 
+### Selecting you standard pin-out
+
+We support two pin-out configurations out-of-the-box: HALLARD and COMPRESULT.
+If you use one of these two, just set the parameter to the right value.
+If your pin definitions are different, update the loraModem.h file to reflect these settings.
+	1: HALLARD
+	2: COMRESULT pin out
+	3: ESP32 pin out
+	4: Other, define your own in loraModem.h
+
+ \#define _PIN_OUT 1
+
+
+### Forcing a SPIFF format at startup
+
+The following parameter shoudl be set to 0 under normal circumstances.
+It does allow the system to foce formatting of the SPIFFS filesystem.
+
+ \#define SPIFF_FORMAT 0  
  
 ### Setting Spreading Factor
 
@@ -190,6 +213,10 @@ communication you are stronly discouvared using one of these as they will not wo
 Instead choose a OLED solution that works over I2C.
 
  \#define OLED 1
+
+The following values are defined for OLED:
+1. 0.9 inch OLED screen for I2C bus
+2. 1.1 inch OLED screen for I2C bus
  
 Setting the I2C SDA/SCL pins is done in the ESP-sc-gway.h file right after the #define of OLED.
 Standard the ESP8266 uses pins D1 and D2 for the I2C bus SCL and SDA lines but these can be changed by the user.
