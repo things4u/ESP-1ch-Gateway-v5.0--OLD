@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.6
-// Date: 2018-02-12
+// Version 5.0.8
+// Date: 2018-03-12
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -30,12 +30,8 @@ SSD1306  display(OLED_ADDR, OLED_SDA, OLED_SCL);// i2c ADDR & SDA, SCL on wemos
 
 #if OLED==2
 #include "SH1106.h"
-//#define OLED_ADDR 0x78						// Default for 1.3" it is 0x78
-#define OLED_ADDR 0x3C							// Default 0x3C for 0.9", for 1.3" it is 0x78
+#define OLED_ADDR 0x3C							// Default 0x3C for 1.3" SH1106
 SH1106  display(OLED_ADDR, OLED_SDA, OLED_SCL);	// i2c ADDR & SDA, SCL on wemos
 #endif
 
-
-
-
-#endif
+#endif//OLED>=1

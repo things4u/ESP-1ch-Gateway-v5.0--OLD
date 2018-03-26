@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.6
-// Date: 2018-02-12
+// Version 5.0.8 H
+// Date: 2018-03-16
 //
 // Based on work done by Thomas Telkamp for Raspberry PI 1ch gateway and many others.
 // Contibutions of Dorijan Morelj and Andreas Spies for OLED support.
@@ -19,7 +19,7 @@
 //
 // ----------------------------------------------------------------------------------------
 
-#define VERSION "V.5.0.6.H; 170212a"
+#define VERSION "V.5.0.8.H; 180316a"
 
 // This value of DEBUG determines whether some parts of code get compiled.
 // Also this is the initial value of debug parameter. 
@@ -69,7 +69,6 @@
 // Bonjour is included in iTunes (which is free) and OTA is recommended to install 
 // the firmware on your router witout having to be really close to the gateway and 
 // connect with USB.
-//
 #define A_OTA 1
 
 // We support two pin-out configurations out-of-the-box: HALLARD and COMPRESULT.
@@ -84,7 +83,7 @@
 // Gather statistics on sensor and Wifi status
 // 0= No statistics
 // 1= Keep track of messages statistics, number determined by MAX_STAT
-// 2= See 1 + Keep track of messages received PER each SF
+// 2= Option 1 + Keep track of messages received PER each SF (default)
 #define STATISTICS 2
 
 // Maximum number of statistics records gathered. 20 is a good maximum (memory intensive)
@@ -108,7 +107,6 @@
 
 // Define the name of the accesspoint if the gateway is in accesspoint mode (is
 // getting WiFi SSID and password using WiFiManager)
-// NOTE: Change the password for your OWN environment to be secure
 #define AP_NAME "ESP8266-Gway-Things4U"
 #define AP_PASSWD "ttnAutoPw"
 							
@@ -129,10 +127,13 @@
 // +SPI is input for SPI, SPO is output for SPI
 #define MUTEX 0
 
-// Define if OLED Display is connected to i2c
+// Define if OLED Display is connected to I2C bus. Note that defining an OLED display does not
+// impact perfoamce very much, certainly if no OLED is connected. Wrong OLED will not show
+// sensible results on display
+// OLED==0; No OLED display connected
 // OLED==1; 0.9 Oled Screen based on SSD1306
 // OLED==2;	1"3 Oled screens for Wemos, 128x64 SH1106
-#define OLED 2								// Make define 1 on line if you have an OLED display connected
+#define OLED 2
 
 
 // Define whether we want to manage the gateway over UDP (next to management 

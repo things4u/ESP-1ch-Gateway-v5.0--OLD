@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.6
-// Date: 2018-02-12
+// Version 5.0.8
+// Date: 2018-03-12
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -350,7 +350,7 @@ uint8_t receivePkt(uint8_t *payload)
 	uint8_t crcUsed = readRegister(REG_HOP_CHANNEL);
 	if (crcUsed & 0x40) {
 #if DUSB>=1
-		if (debug>=2) Serial.println(F("receivePkt:: CRC used"));
+		if (debug>=2) Serial.println(F("rxPkt:: CRC used"));
 #endif
 	}
 	
@@ -358,18 +358,27 @@ uint8_t receivePkt(uint8_t *payload)
     if (irqflags & IRQ_LORA_CRCERR_MASK)
     {
 #if DUSB>=1
-        if (debug>=0) Serial.println(F("CRC"));
+        if (debug>=0) {
+			Serial.print(F("Err RxPkg:: CRC, ="));
+			SerialTime();
+			Serial.println();
+		}
 #endif
 		// Reset CRC flag 0x20
-        writeRegister(REG_IRQ_FLAGS, (uint8_t)(IRQ_LORA_CRCERR_MASK | IRQ_LORA_RXDONE_MASK));	// 0x12; clear CRC (== 0x20) flag
-        return 0;
+        //writeRegister(REG_IRQ_FLAGS, (uint8_t)(IRQ_LORA_CRCERR_MASK | IRQ_LORA_RXDONE_MASK));	// 0x12; clear CRC (== 0x20) flag
+		//_event=0;
+		//writeRegister(REG_IRQ_FLAGS_MASK, (uint8_t) 0x00);
+		//writeRegister(REG_IRQ_FLAGS, (uint8_t) 0xFF);								// XXX 180324 done in state machine
+		return 0;
     }
 	
 	// Is header OK?
 	else if ((irqflags & IRQ_LORA_HEADER_MASK) == false)
     {
 #if DUSB>=1
-        if (debug>=0) Serial.println(F("HEADER"));
+        if (debug>=0) {
+			Serial.println(F("Err RxPkg:: HEADER"));
+		}
 #endif
 		// Reset VALID-HEADER flag 0x10
         writeRegister(REG_IRQ_FLAGS, (uint8_t)(IRQ_LORA_HEADER_MASK  | IRQ_LORA_RXDONE_MASK));	// 0x12; clear HEADER (== 0x10) flag
@@ -397,7 +406,7 @@ uint8_t receivePkt(uint8_t *payload)
         uint8_t receivedCount = readRegister(REG_RX_NB_BYTES);			// 0x13; How many bytes were read
 #if DUSB>=1
 		if ((debug>=0) && (currentAddr > 64)) {
-			Serial.print(F("receivePkt:: Rx addr>64"));
+			Serial.print(F("rxPkt:: Rx addr>64"));
 			Serial.println(currentAddr);
 		}
 #endif
@@ -406,7 +415,7 @@ uint8_t receivePkt(uint8_t *payload)
 		if (receivedCount > PAYLOAD_LENGTH) {
 #if DUSB>=1
 			if (debug>=0) {
-				Serial.print(F("receivePkt:: receivedCount="));
+				Serial.print(F("rxPkt:: receivedCount="));
 				Serial.println(receivedCount);
 			}
 #endif
@@ -421,11 +430,15 @@ uint8_t receivePkt(uint8_t *payload)
 		writeRegister(REG_IRQ_FLAGS, (uint8_t) 0xFF);		// Reset ALL interrupts
 #if DUSB>=1
 		if (debug>=0) {
-			Serial.print(F("receivePkt:: freq="));
+		
+			Serial.print(F("rxPkt:: t="));
+			SerialTime();
+			
+			Serial.print(F(", f="));
 			Serial.print(ifreq);
 			Serial.print(F(", sf="));
 			Serial.print(sf);
-			Serial.print(F(", lora="));
+			Serial.print(F(", a="));
 			if (payload[4]<0x10) Serial.print('0'); Serial.print(payload[4], HEX);
 			if (payload[3]<0x10) Serial.print('0'); Serial.print(payload[3], HEX);
 			if (payload[2]<0x10) Serial.print('0'); Serial.print(payload[2], HEX);
@@ -811,9 +824,9 @@ void initLoraModem()
 	opmode(OPMODE_LORA);										// set register 0x01 to 0x80
 	
 	// 3. Set frequency based on value in freq
-	ifreq = 0; 
-	freq=freqs[0];
-	setFreq(freq);												// set to 868.1MHz
+	//ifreq = 0; 												// XXX 180326
+	freq=freqs[ifreq];
+	setFreq(freq);												// set to 868.1MHz or the last saved frequency
 	
 	// 4. Set spreading Factor
     setRate(sf, 0x04);
@@ -838,12 +851,18 @@ void initLoraModem()
             sx1272 = false;
 	} 
 	else {
+		// Normally this means that we connected the wrong type of board and
+		// therefore specified the wrong type of wiring/pins to the software
+		// Maybe this issue can be resolved of we try one of the other defined 
+		// boards. (Comresult or Hallard or ...)
 #if DUSB>=1
 		Serial.print(F("Unknown transceiver="));
 		Serial.println(version,HEX);
 #endif
-		die("");
+		die("");												// Maybe first try another kind of receiver
     }
+	// If we are here, the chip is recognized successfully
+	
 	// 7. set sync word
 	writeRegister(REG_SYNC_WORD, (uint8_t) 0x34);				// set 0x39 to 0x34 LORA_MAC_PREAMBLE
 	

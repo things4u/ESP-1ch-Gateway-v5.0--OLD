@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.6
-// Date: 2018-02-12
+// Version 5.0.8
+// Date: 2018-03-12
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many other contributors.
@@ -22,13 +22,13 @@
 
 // ----------------------------------------
 // Used by REG_PAYLOAD_LENGTH to set receive payload length
-#define PAYLOAD_LENGTH              0x40	// 64 bytes
-#define MAX_PAYLOAD_LENGTH          0x80	// 128 bytes
+#define PAYLOAD_LENGTH              0x40		// 64 bytes
+#define MAX_PAYLOAD_LENGTH          0x80		// 128 bytes
 
 // In order to make the CAD behaviour dynamic we set a variable
 // when the CAD functions are defined. Value of 3 is minimum frequencies a
 // gateway should support to be fully LoRa compliant.
-#define NUM_HOPS 2						// 3 should be the minimum
+#define NUM_HOPS 3								// for real gateway 3 should be the minimum
 
 // Do not change these setting for RSSI detection. They are used for CAD
 // Given the correction factor of 157, we can get to -122dB with this rating
@@ -43,7 +43,7 @@
 // How long will it take when hopping before a CDONE or CDETD value
 // is measured.
 //
-#define EVENT_WAIT 600							// was 200
+#define EVENT_WAIT 3000							// was 2000
 
 // Our code should correct the server Tramission delay settings
 long txDelay= 0x00;								// tx delay time on top of server TMST
@@ -60,12 +60,12 @@ int freqs [] = {
 	868300000, 									// Channel 1, 868.3 MHz mandatory
 	868500000, 									// Channel 2, 868.5 MHz mandatory
 	867100000, 									// Channel 3, 867.1 MHz Optional
-	867300000, 
-	867500000, 
-	867700000, 
-	867900000, 
-	868800000, 
-	869525000									// Channel, for responses gateway (10%)
+	867300000, 									// Channel 4, 867.3 MHz Optional
+	867500000,  								// Channel 5, 867.5 MHz Optional
+	867700000,  								// Channel 6, 867.7 MHz Optional 
+	867900000,  								// Channel 7, 867.9 MHz Optional 
+	868800000,   								// Channel 8, 868.9 MHz Optional
+	869525000									// Channel 9, 869.5 MHz for responses gateway (10%)
 	// TTN defines an additional channel at 869.525Mhz using SF9 for class B. Not used
 };
 uint32_t  freq = freqs[0];
@@ -80,7 +80,7 @@ enum sf_t { SF6=6, SF7, SF8, SF9, SF10, SF11, SF12 };
 // The _state is of the enum type (and should be cast when used as a number)
 enum state_t { S_INIT=0, S_SCAN, S_CAD, S_RX, S_TX, S_TXDONE};
 
-volatile state_t _state;
+volatile state_t _state=S_INIT;
 volatile uint8_t _event=0;
 
 // rssi is measured at specific moments and reported on others
@@ -89,7 +89,7 @@ uint8_t _rssi;
 
 bool _cad= (bool) _CAD;	// Set to true for Channel Activity Detection, only when dio 1 connected
 bool _hop=false;		// experimental; frequency hopping. Only use when dio2 connected
-bool inHop=false;
+
 unsigned long nowTime=0;
 unsigned long msgTime=0;
 unsigned long hopTime=0;
@@ -162,7 +162,7 @@ struct stat_t {
 // contains general statics of the node
 #if STATISTICS >= 2							// Only if we explicitely set it higher
 struct stat_c {
-	unsigned long sf7;						// Spreading factor 7
+	unsigned long sf7;						// Spreading factor 7 statistics/Count
 	unsigned long sf8;						// Spreading factor 8
 	unsigned long sf9;						// Spreading factor 9
 	unsigned long sf10;						// Spreading factor 10
@@ -206,7 +206,6 @@ struct LoraUp {
 	int			rssicorr;
 	uint8_t		sf;
 } LoraUp;
-
 
 
 

@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.6
-// Date: 2018-02-12
+// Version 5.0.8
+// Date: 2018-03-12
 // Author: Maarten Westenberg (mw12554@hotmail.com)
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1-ch gateway
@@ -41,13 +41,16 @@
 #include <cstring>
 #include <SPI.h>
 #include <TimeLib.h>							// http://playground.arduino.cc/code/time
-#include <ESP8266WiFi.h>
-#include <DNSServer.h> 							// Local DNSserver
+#include <DNSServer.h>							// Local DNSserver
+#include <ArduinoJson.h>
+#include <SimpleTimer.h>
+
+#include <ESP8266WiFi.h>						// Which is specific for ESP8266
+						
 #include "FS.h"
 #include <WiFiUdp.h>
 #include <pins_arduino.h>
-#include <ArduinoJson.h>
-#include <SimpleTimer.h>
+
 #include <gBase64.h>							// https://github.com/adamvr/arduino-base64 (changed the name)
 #include <ESP8266mDNS.h>
 
@@ -482,16 +485,21 @@ int WlanWriteWpa( char* ssid, char *pass) {
 // ----------------------------------------------------------------------------
 // Function to join the Wifi Network
 //	It is a matter of returning to the main loop() asap and make sure in next loop
-//	the reconnect is done first thing.
+//	the reconnect is done first thing. By default the system will reconnect to the
+// samen SSID as it was connected to before.
 // Parameters:
 //		int maxTry: Number of reties we do:
 //		0: Try forever. Which is normally what we want except for Setup maybe
-//		1: Try once and if unsuccessful return(0);
+//		1: Try once and if unsuccessful return(1);
 //		x: Try x times
 //
 //  Returns:
 //		On failure: Return -1
 //		int number of retries necessary
+//
+//  XXX After a few retries, the ESP8266 should be reset. Note: Switching between 
+//	two SSID's does the trick. Rettrying the same SSID does not.
+// Workaround is found below: Let the ESP8266 forget the SSID
 // ----------------------------------------------------------------------------
 int WlanConnect(int maxTry) {
   
@@ -505,14 +513,16 @@ int WlanConnect(int maxTry) {
 	// So try to connect to WLAN as long as we are not connected.
 	// The try parameters tells us how many times we try before giving up
 	int i=0;
+	
+	if (WiFi.status() == WL_CONNECTED) return(1);
 
 	// We try 5 times before giving up on connect
 	while ( (WiFi.status() != WL_CONNECTED) && ( i< maxTry ) )
 	{
 
-	  // We try every SSID in wap array until success
-	  for (int j=wpa_index; j< (sizeof(wpa)/sizeof(wpa[0])) ; j++) {
-	 
+	  // We try every SSID in wpa array until success
+	  for (int j=wpa_index; (j< (sizeof(wpa)/sizeof(wpa[0]))) && (WiFi.status() != WL_CONNECTED ); j++)
+	  {
 		// Start with well-known access points in the list
 		char *ssid		= wpa[j].login;
 		char *password	= wpa[j].passw;
@@ -520,47 +530,84 @@ int WlanConnect(int maxTry) {
 		Serial.print(i);
 		Serial.print(':');
 		Serial.print(j); 
-		Serial.print(F(". WiFi connect to: ")); 
-		Serial.println(ssid);
+		Serial.print(F(". WiFi connect SSID=")); 
+		Serial.print(ssid);
+		if (debug>=1) {
+			Serial.print(F(", pass="));
+			Serial.print(password);
+		}
+		Serial.println();
 		
 		// Count the number of times we call WiFi.begin
 		gwayConfig.wifis++;
-		writeGwayCfg(CONFIGFILE);
-		
+
+		//WiFi.disconnect();
+		delay(1000);
+
+		WiFi.persistent(false);
+		WiFi.mode(WIFI_OFF);   // this is a temporary line, to be removed after SDK update to 1.5.4
+		WiFi.mode(WIFI_STA);
 		WiFi.begin(ssid, password);
 		
+		delay(9000);
+		
 		// We increase the time for connect but try the same SSID
-		// We try for 9 times
-		agains=0;
-		while ((WiFi.status() != WL_CONNECTED) && (agains < 9)) {
-			delay(agains*400);
+		// We try for 10 times
+		agains=1;
+		while (((WiFi.status()) != WL_CONNECTED) && (agains < 10)) {
 			agains++;
-			if (debug>=2) Serial.print(".");
+			delay(agains*500);
+			if (debug>=0) Serial.print(".");
 		}
-		if (WiFi.status() == WL_CONNECTED) 
-			break;
-		else 
-			WiFi.disconnect();
+		
+		// Check the connection status again
+		switch (WiFi.status()) {
+			case WL_CONNECTED:
+				if (debug>=0)
+					Serial.println(F("WlanConnect:: CONNECTED"));				// 3
+				return(1);
+				break;
+			case WL_IDLE_STATUS:
+				Serial.println(F("WlanConnect:: IDLE"));						// 0
+				break;
+			case WL_NO_SSID_AVAIL:
+				Serial.println(F("WlanConnect:: NO SSID"));						// 1
+				break;
+			case WL_CONNECT_FAILED:
+				Serial.println(F("WlanConnect:: FAILED"));						// 4
+				break;
+			case WL_DISCONNECTED:
+				Serial.println(F("WlanConnect:: DISCONNECTED"));				// 6
+				
+				break;
+			case WL_SCAN_COMPLETED:
+				Serial.println(F("WlanConnect:: SCAN COMPLETE"));				// 2
+				break;
+			case WL_CONNECTION_LOST:
+				Serial.println(F("WlanConnect:: LOST"));						// 5
+				break;
+			default:
+				Serial.print(F("WlanConnect:: code="));
+				Serial.println(WiFi.status());
+				break;
+		}
+
 	  } //for
 	  i++;													// Number of times we try to connect
-	}
-	
+	} //while
+
+	// It should not be possible to be here while WL_CONNECTed
+	if (WiFi.status() == WL_CONNECTED) {
 #if DUSB>=1
-	if (i==0) {
 		if (debug>=3) {
 			Serial.print(F("WLAN connected"));
 			Serial.println();
 		}
+#endif
+		writeGwayCfg(CONFIGFILE);
 		return(1);
 	}
 	else {
-		Serial.print(F("WLAN retry="));
-		Serial.println(i);
-	}
-#endif
-  
-	// Still not connected?
-	if (WiFi.status() != WL_CONNECTED) {
 #if WIFIMANAGER==1
 		Serial.println(F("Starting Access Point Mode"));
 		Serial.print(F("Connect Wifi to accesspoint: "));
@@ -581,10 +628,21 @@ int WlanConnect(int maxTry) {
 		//WlanWriteWpa(ssidBuf, (char *)sta_conf.password);
 		WlanWriteWpa((char *)sta_conf.ssid, (char *)sta_conf.password);
 #else
+#if DUSB>=1
+		if (debug>=0) {
+			Serial.println(F("WlanConnect:: Not connected after all"));
+			Serial.print(F("WLAN retry="));
+			Serial.print(i);
+			Serial.print(F(" , stat="));
+			Serial.print(WiFi.status() );						// Status. 3 is WL_CONNECTED
+			Serial.println();
+		}
+#endif // DUSB
 		return(-1);
 #endif
 	}
 
+  
 	yield();
   
 	return(1);
@@ -1108,7 +1166,7 @@ void setup() {
 	Serial.flush();
 	delay(500);
 
-	if (SPIFFS.begin()) Serial.println(F("SPIFFS loaded success"));
+	if (SPIFFS.begin()) Serial.println(F("SPIFFS init success"));
 	
 #if SPIFF_FORMAT>=1
 	SPIFFS.format();								// Normally disabled. Enable only when SPIFFS corrupt
@@ -1140,7 +1198,7 @@ void setup() {
 	WiFi.macAddress(MAC_array);
 	
     sprintf(MAC_char,"%02x:%02x:%02x:%02x:%02x:%02x",
-		MAC_char[0],MAC_array[1],MAC_char[2],MAC_array[3],MAC_char[4],MAC_array[5]);
+		MAC_array[0],MAC_array[1],MAC_array[2],MAC_array[3],MAC_array[4],MAC_array[5]);
 	Serial.print("MAC: ");
     Serial.print(MAC_char);
 	Serial.print(F(", len="));
@@ -1330,9 +1388,9 @@ void loop ()
 	// In this case we handle the interrupt ( e.g. message received)
 	// in userspace in loop().
 	//
-	while (_event != 0x00) {							// 
-		stateMachine();									// start the state machine
-	}
+	//while (_event != 0x00) {							// 
+		stateMachine();									// do the state machine
+	//}
 	
 	// After a quiet period, make sure we reinit the modem and state machine.
 	// The interval is in seconds (about 10 seconds) as this re-init
@@ -1344,14 +1402,10 @@ void loop ()
 		(msgTime < statr[0].tmst) ) 
 	{
 #if DUSB>=1
-		if (debug>=1) Serial.println("REINIT");
+		if (debug>=0) Serial.println("REINIT");
 #endif
-		initLoraModem();								// XXX 26/12/2017
-		if (_hop) {
-			_state = S_SCAN;
-			hop();
-		}
-		else if (_cad) {
+
+		if ((_cad) || (_hop)) {
 			_state = S_SCAN;
 			cadScanner();
 		}
@@ -1360,10 +1414,18 @@ void loop ()
 			rxLoraModem();
 		}
 		writeRegister(REG_IRQ_FLAGS_MASK, (uint8_t) 0x00);
-		writeRegister(REG_IRQ_FLAGS, 0xFF);				// Reset all interrupt flags
+		writeRegister(REG_IRQ_FLAGS, (uint8_t) 0xFF);			// Reset all interrupt flags
 		msgTime = nowSeconds;
 	}
-	
+
+#if A_SERVER==1
+	// Handle the Web server part of this sketch. Mainly used for administration 
+	// and monitoring of the node. This function is important so it is called at the
+	// start of the loop() function.
+	yield();
+	server.handleClient();
+#endif
+
 #if A_OTA==1
 	// Perform Over the Air (OTA) update if enabled and requested by user.
 	// It is important to put this function at the start of loop() as it is
@@ -1373,15 +1435,13 @@ void loop ()
 	ArduinoOTA.handle();
 #endif
 
-#if A_SERVER==1
-	// Handle the WiFi server part of this sketch. Mainly used for administration 
-	// and monitoring of the node. This function is important so it is called at the
-	// start of the loop() function
-	yield();
-	server.handleClient();	
-#endif
-
-
+	// I event is set, we know that we have a (soft) interrupt.
+	// After all necessary web/OTA services are scanned, we will
+	// reloop here for timing purposes. Do a less yield() as possible.
+	// XXX 180326
+	if (_event == 1) return;
+	else yield();
+	
 	// If we are not connected, try to connect.
 	// We will not read Udp in this loop cycle then
 	if (WlanConnect(1) < 0) {
@@ -1413,11 +1473,9 @@ void loop ()
 			}
 			// Now we know we succesfull received message from host
 			else {
-				_event=1;								// Could be done double if more messages received
+				//_event=1;								// Could be done double if more messages received
 			}
-			//yield();
 		}
-		//yield();				// XXX 26/12/2017
 	}
 	
 	yield();					// XXX 26/12/2017
@@ -1475,8 +1533,11 @@ void loop ()
 		}
 #endif
         pullData();										// Send PULL_DATA message to server
-		initLoraModem();
+		initLoraModem();								// XXX 180326, after adapting this function 
 		if (_cad) {
+#if DUSB>=1
+			if (debug>=1) Serial.println(F("PULL:: _state set to S_SCAN"));
+#endif
 			_state = S_SCAN;
 			cadScanner();
 		}
