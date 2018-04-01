@@ -1,6 +1,6 @@
 # Single Channel LoRaWAN Gateway
 
-Version 5.0.6, February 11, 2017  
+Version 5.0.8, February 12, 2018  
 Author: M. Westenberg (mw12554@hotmail.com)  
 Copyright: M. Westenberg (mw12554@hotmail.com)  
 
@@ -15,6 +15,23 @@ Maintained by Maarten Westenberg (mw12554@hotmail.com)
 
 
 # Release Notes
+New features in version 5.0.8 (Mar 26, 2018)
+- Simplified State machine and removed unnecessary code
+- Changed the WiFI Disconnect code (bug in SDK). When WiFi.begin() is executed, 
+  the previous accesspoint is not deleted. But the ESP8266 does also not connect 
+  to it anymore. The workaround restarts the WiFI completely.
+- Repair the bug causing the Channel setting to switch back to channel 0 when the RFM95 modem is reset 
+  (after upstream message)
+- Documentation Changes
+- Small bug fixes
+
+New features in version 5.0.7 (Feb 12, 2018)
+- On low debug value (0) we show the time in the rx status message on 
+- WlanConnect function updated
+
+New features in version 5.0.7 (Feb 24, 2018)
+- Changed WlaConnect function to not hang and give more debug info
+- Made the change to display correct MAC address info
 
 New features in version 5.0.6 (Feb 11, 2018)
 - All timer functions that show lists on website etc are now based on now() en NTP, 
