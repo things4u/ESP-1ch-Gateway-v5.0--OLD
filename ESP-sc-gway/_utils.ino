@@ -17,7 +17,7 @@
 // ========================================================================================
 
 // ----------------------------------------------------------------------------
-// Print a HEXadecimal string from a 4-byte char string
+// Fill a HEXadecimal Stromg string from a 4-byte char string
 //
 // ----------------------------------------------------------------------------
 static void printHEX(char * hexa, const char sep, String& response) 
@@ -74,6 +74,7 @@ static void stringTime(time_t t, String& response) {
 
 // ----------------------------------------------------------------------------
 // SerialTime
+// Print the current time on the Serial (USB), with leading 0.
 // ----------------------------------------------------------------------------
 void SerialTime() 
 {

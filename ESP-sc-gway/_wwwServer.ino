@@ -56,8 +56,6 @@ static void printIP(IPAddress ipa, const char sep, String& response)
 
 
 
-
-
 // ----------------------------------------------------------------------------
 // SET ESP8266 WEB SERVER VARIABLES
 //
@@ -222,6 +220,7 @@ static void openWebPage()
 	
 	response +="<h1>ESP Gateway Config</h1>";
 
+	response +="<p style='font-size:10px'>";
 	response +="Version: "; response+=VERSION;
 	response +="<br>ESP alive since "; 					// STARTED ON
 	stringTime(startTime, response);
@@ -243,6 +242,7 @@ static void openWebPage()
 	response +="<br>Current time    "; 					// CURRENT TIME
 	stringTime(now(), response);
 	response +="<br>";
+	response +="</p>";
 	
 	server.sendContent(response);
 }
@@ -373,11 +373,11 @@ static void configData()
 	response +=String() + "<td class=\"cell\">"+gwayConfig.boots+"</td>";
 	response +="<td colspan=\"2\" class=\"cell\"><a href=\"/BOOT\"><button>RESET</button></a></td></tr>";
 #endif
-	response +="</table>";
+	//response +="</table>";
 	
 	// Update Firmware all statistics
 	response +="<tr><td class=\"cell\">Update Firmware</td>";
-	response +="<td class=\"cell\"></td><td colspan=\"2\" class=\"cell\"><a href=\"/UPDATE=1\"><button>RESET</button></a></td></tr>";
+	response +="<td class=\"cell\"></td><td colspan=\"2\" class=\"cell\"><a href=\"/UPDATE=1\"><button>UPDATE</button></a></td></tr>";
 	response +="</table>";
 	
 	server.sendContent(response);
@@ -687,7 +687,8 @@ void sendWebPage(const char *cmd, const char *arg)
 	interruptData(); yield();					// Display interrupts only when debug >= 2
 		
 	// Close the client connection to server
-	server.sendContent(String() + "<br><br />Click <a href=\"/HELP\">here</a> to explain Help and REST options<br>");
+	server.sendContent(String() + "<br><br /><p style='font-size:10px'>Click <a href=\"/HELP\">here</a> to explain Help and REST options</p><br>");
+
 	server.sendContent(String() + "</BODY></HTML>");
 	server.sendContent(""); yield();
 	
