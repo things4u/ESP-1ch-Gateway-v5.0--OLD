@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.8
-// Date: 2018-03-12
+// Version 5.0.9
+// Date: 2018-04-07
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -87,7 +87,6 @@
 // Returns the value of register(addr)
 // 
 // The SS (Chip select) pin is used to make sure the RFM95 is selected
-// We also use a volatile mutexSPI to tell use whether the interrupt is in use.
 // The variable is for obvious reasons valid for read and write traffic at the
 // same time. Since both read and write mean that we write to the SPI interface.
 // Parameters:
@@ -373,6 +372,8 @@ uint8_t receivePkt(uint8_t *payload)
     }
 	
 	// Is header OK?
+	// Please note that if we reset the HEADER interrupt in RX,
+	// that we would here conclude that ther eis no HEADER
 	else if ((irqflags & IRQ_LORA_HEADER_MASK) == false)
     {
 #if DUSB>=1
@@ -448,7 +449,10 @@ uint8_t receivePkt(uint8_t *payload)
 			Serial.print(F(", addr="));
 			Serial.print(currentAddr);
 			Serial.print(F(", len="));
-			Serial.println(receivedCount);
+			Serial.print(receivedCount);
+
+			Serial.println();
+			
 			if (debug>=2) Serial.flush();
 		}
 #endif

@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.8
-// Date: 2018-03-12
+// Version 5.0.9
+// Date: 2018-04-07
 //
 //
 // All rights reserved. This program and the accompanying materials
@@ -37,7 +37,7 @@ void setupOta(char *hostname) {
 	
 	ArduinoOTA.onStart([]() {
 		String type;
-		// XXX version mispatch of platform.io and ArduinoOtaa
+		// XXX version mismatch of platform.io and ArduinoOtaa
 		// see https://github.com/esp8266/Arduino/issues/3020
 		//if (ArduinoOTA.getCommand() == U_FLASH)
 			type = "sketch";

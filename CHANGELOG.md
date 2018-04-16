@@ -15,6 +15,14 @@ Maintained by Maarten Westenberg (mw12554@hotmail.com)
 
 
 # Release Notes
+
+New features in version 5.0.9 (Apr 08, 2018)
+- In statistics overview the option is added to specify names for known nodes
+- Keep track of the amount of messages per channel (only 3 channels supported).
+- Use the SPIFFS filesystem to provide log statistics of messages. Use the GUI and on the top select log. 
+The log data is displayed in the USB Serial area (for the moment).
+- Remove a lot of the debug==1 and debug==2 messages as they aree not useful.
+
 New features in version 5.0.8 (Mar 26, 2018)
 - Simplified State machine and removed unnecessary code
 - Changed the WiFI Disconnect code (bug in SDK). When WiFi.begin() is executed, 
@@ -22,8 +30,10 @@ New features in version 5.0.8 (Mar 26, 2018)
   to it anymore. The workaround restarts the WiFI completely.
 - Repair the bug causing the Channel setting to switch back to channel 0 when the RFM95 modem is reset 
   (after upstream message)
+- Introduced the _utils.ino with Serial line utilities
 - Documentation Changes
 - Small bug fixes
+- Removal of unused global variables
 
 New features in version 5.0.7 (Feb 12, 2018)
 - On low debug value (0) we show the time in the rx status message on 

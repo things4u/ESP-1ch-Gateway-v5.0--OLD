@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.8
-// Date: 2018-03-12
+// Version 5.0.9
+// Date: 2018-04-07
 //
 // 	based on work done by many people and making use of several libraries.
 //
@@ -26,6 +26,12 @@
 // displayed like an old typewriter.
 // So, the trick is to make chucks that are sent to the website by using
 // a response String but not make those Strings too big.
+//
+// Also, selecting too many options for Statistics, display, Hopping channels
+// etc makes the gateway more sluggish and may impact the availabile memory and 
+// thus its performance and reliability. It's up to the uer to select wisely!
+//
+
 
 // ----------------------------------------------------------------------------
 // PRINT IP
@@ -53,7 +59,44 @@ static void printIP(IPAddress ipa, const char sep, String& response)
 // ================================================================================
 // WEBSERVER FUNCTIONS 
 
+// ----------------------------------------------------------------------------
+// Button function Stat, display statistics
+// ----------------------------------------------------------------------------
+void buttonStat() 
+{
+	String response = "";
+	openWebPage();
+	wwwButtons();
+	response += "Statistics";
+	server.sendContent(response);
+}
 
+// ----------------------------------------------------------------------------
+// Button gunction log displays  logfiles and lets the user select one.
+// ----------------------------------------------------------------------------
+void buttonLog() 
+{
+	Serial.print(F("Log"));
+	Serial.println();
+	//alert("Print log on USB port. This may take a while");
+	printLog();
+	String response = "";
+	response+= "alert('Log');";
+	server.sendContent(response);
+}
+
+// ----------------------------------------------------------------------------
+// Navigate webpage by buttons. This method has some advantages:
+// - Less time/cpu usage
+// - Less memory usage		<a href=\"SPEED=160\">
+// ----------------------------------------------------------------------------
+static void wwwButtons()
+{
+	String response = "";
+	response += "<a href=\"STAT\"><button type=\"button\">Stat</button></a>";
+	response += "<a href=\"LOG\"><button type=\"button\">Log</button></a>";
+	server.sendContent(response);									// Send to the screen
+}
 
 
 // ----------------------------------------------------------------------------
@@ -220,7 +263,7 @@ static void openWebPage()
 	
 	response +="<h1>ESP Gateway Config</h1>";
 
-	response +="<p style='font-size:10px'>";
+	response +="<p style='font-size:10px;'>";
 	response +="Version: "; response+=VERSION;
 	response +="<br>ESP alive since "; 					// STARTED ON
 	stringTime(startTime, response);
@@ -253,7 +296,7 @@ static void openWebPage()
 //
 //
 // ----------------------------------------------------------------------------
-static void configData() 
+static void settingsData() 
 {
 	String response="";
 	String bg="";
@@ -357,27 +400,29 @@ static void configData()
 	response +="</tr>";
 #endif
 
+	// Reset Accesspoint
 #if WIFIMANAGER==1
 	response +="<tr><td>";
 	response +="Click <a href=\"/NEWSSID\">here</a> to reset accesspoint<br>";
 	response +="</td><td></td></tr>";
 #endif
 
+	// Update Firmware all statistics
+	response +="<tr><td class=\"cell\">Update Firmware</td>";
+	response +="<td class=\"cell\"></td><td colspan=\"2\" class=\"cell\"><a href=\"/UPDATE=1\"><button>UPDATE</button></a></td></tr>";
+
 	// Reset all statistics
 #if STATISTICS >= 1
 	response +="<tr><td class=\"cell\">Statistics</td>";
 	response +=String() + "<td class=\"cell\">"+statc.resets+"</td>";
 	response +="<td colspan=\"2\" class=\"cell\"><a href=\"/RESET\"><button>RESET</button></a></td></tr>";
-	
+
+	// Reset
 	response +="<tr><td class=\"cell\">Boots and Resets</td>";
 	response +=String() + "<td class=\"cell\">"+gwayConfig.boots+"</td>";
 	response +="<td colspan=\"2\" class=\"cell\"><a href=\"/BOOT\"><button>RESET</button></a></td></tr>";
 #endif
-	//response +="</table>";
 	
-	// Update Firmware all statistics
-	response +="<tr><td class=\"cell\">Update Firmware</td>";
-	response +="<td class=\"cell\"></td><td colspan=\"2\" class=\"cell\"><a href=\"/UPDATE=1\"><button>UPDATE</button></a></td></tr>";
 	response +="</table>";
 	
 	server.sendContent(response);
@@ -470,43 +515,126 @@ static void statisticsData()
 {
 	String response="";
 
+	// Header
 	response +="<h2>Package Statistics</h2>";
-	
 	response +="<table class=\"config_table\">";
-	response +="<tr>";
-	response +="<th class=\"thead\">Counter</th>";
+	response +="<tr><th class=\"thead\">Counter</th>";
+#if STATISTICS == 3
+	response +="<th class=\"thead\">C 0</th>";
+	response +="<th class=\"thead\">C 1</th>";
+	response +="<th class=\"thead\">C 2</th>";
+#endif
 	response +="<th class=\"thead\">Pkgs</th>";
 	response +="<th class=\"thead\">Pkgs/hr</th>";
 	response +="</tr>";
-	
+
+	// Table rows
+	response +="<tr><td class=\"cell\">Packages Downlink</td>";
+#if STATISTICS == 3
+		response +="<td class=\"cell\"></td>";
+		response +="<td class=\"cell\"></td>";
+		response +="<td class=\"cell\"></td>"; 
+#endif
+	response += "<td class=\"cell\">" + String(cp_up_pkt_fwd) + "</td>";
+	response +="<td class=\"cell\"></td></tr>";
+		
 	response +="<tr><td class=\"cell\">Packages Uplink Total</td>";
+#if STATISTICS == 3
+		response +="<td class=\"cell\"></td>";
+		response +="<td class=\"cell\"></td>";
+		response +="<td class=\"cell\"></td>";
+#endif
 		response +="<td class=\"cell\">" + String(cp_nb_rx_rcv) + "</td>";
 		response +="<td class=\"cell\">" + String((cp_nb_rx_rcv*3600)/(now() - startTime)) + "</td></tr>";
 		
-	response +="<tr><td class=\"cell\">Packages Uplink OK </td><td class=\"cell\">";
-		response +=cp_nb_rx_ok; response+="</tr>";
+	response +="<tr><td class=\"cell\">Packages Uplink OK </td>";
+#if STATISTICS == 3
+		response +="<td class=\"cell\"></td>";
+		response +="<td class=\"cell\"></td>";
+		response +="<td class=\"cell\"></td>";
+#endif
+	response +="<td class=\"cell\">" + String(cp_nb_rx_ok) + "</td>";
+	response +="<td class=\"cell\"></td></tr>";
 		
-	response +="<tr><td class=\"cell\">Packages Downlink</td><td class=\"cell\">"; 
-		response +=cp_up_pkt_fwd; response+="</tr>";
 
-	// Privide a tbale with all the SF data including percentage of messsages
-#if STATISTICS >= 2
-	response +="<tr><td class=\"cell\">SF7 rcvd</td>"; response +="<td class=\"cell\">"; response +=statc.sf7; 
-		response +="<td class=\"cell\">"; response += String(cp_nb_rx_rcv>0 ? 100*statc.sf7/cp_nb_rx_rcv : 0)+" %"; response +="</td></tr>";
-	response +="<tr><td class=\"cell\">SF8 rcvd</td>"; response +="<td class=\"cell\">"; response +=statc.sf8;
-		response +="<td class=\"cell\">"; response += String(cp_nb_rx_rcv>0 ? 100*statc.sf8/cp_nb_rx_rcv : 0)+" %"; response +="</td></tr>";
-	response +="<tr><td class=\"cell\">SF9 rcvd</td>"; response +="<td class=\"cell\">"; response +=statc.sf9;
-		response +="<td class=\"cell\">"; response += String(cp_nb_rx_rcv>0 ? 100*statc.sf9/cp_nb_rx_rcv : 0)+" %"; response +="</td></tr>";
-	response +="<tr><td class=\"cell\">SF10 rcvd</td>"; response +="<td class=\"cell\">"; response +=statc.sf10; 
-		response +="<td class=\"cell\">"; response += String(cp_nb_rx_rcv>0 ? 100*statc.sf10/cp_nb_rx_rcv : 0)+" %"; response +="</td></tr>";
-	response +="<tr><td class=\"cell\">SF11 rcvd</td>"; response +="<td class=\"cell\">"; response +=statc.sf11; 
-		response +="<td class=\"cell\">"; response += String(cp_nb_rx_rcv>0 ? 100*statc.sf11/cp_nb_rx_rcv : 0)+" %"; response +="</td></tr>";
-	response +="<tr><td class=\"cell\">SF12 rcvd</td>"; response +="<td class=\"cell\">"; response +=statc.sf12; 
-		response +="<td class=\"cell\">"; response += String(cp_nb_rx_rcv>0 ? 100*statc.sf12/cp_nb_rx_rcv : 0)+" %"; response +="</td></tr>";
+	// Provide a table with all the SF data including percentage of messsages
+#if STATISTICS == 2
+	response +="<tr><td class=\"cell\">SF7 rcvd</td>"; 
+		response +="<td class=\"cell\">"; response +=statc.sf7; 
+		response +="<td class=\"cell\">"; response += String(cp_nb_rx_rcv>0 ? 100*statc.sf7/cp_nb_rx_rcv : 0)+" %"; 
+		response +="</td></tr>";
+	response +="<tr><td class=\"cell\">SF8 rcvd</td>"; 
+		response +="<td class=\"cell\">"; response +=statc.sf8;
+		response +="<td class=\"cell\">"; response += String(cp_nb_rx_rcv>0 ? 100*statc.sf8/cp_nb_rx_rcv : 0)+" %"; 
+		response +="</td></tr>";
+	response +="<tr><td class=\"cell\">SF9 rcvd</td>"; 
+		response +="<td class=\"cell\">"; response +=statc.sf9;
+		response +="<td class=\"cell\">"; response += String(cp_nb_rx_rcv>0 ? 100*statc.sf9/cp_nb_rx_rcv : 0)+" %"; 
+		response +="</td></tr>";
+	response +="<tr><td class=\"cell\">SF10 rcvd</td>"; 
+		response +="<td class=\"cell\">"; response +=statc.sf10; 
+		response +="<td class=\"cell\">"; response += String(cp_nb_rx_rcv>0 ? 100*statc.sf10/cp_nb_rx_rcv : 0)+" %"; 
+		response +="</td></tr>";
+	response +="<tr><td class=\"cell\">SF11 rcvd</td>"; 
+		response +="<td class=\"cell\">"; response +=statc.sf11; 
+		response +="<td class=\"cell\">"; response += String(cp_nb_rx_rcv>0 ? 100*statc.sf11/cp_nb_rx_rcv : 0)+" %"; 
+		response +="</td></tr>";
+	response +="<tr><td class=\"cell\">SF12 rcvd</td>"; 
+		response +="<td class=\"cell\">"; response +=statc.sf12; 
+		response +="<td class=\"cell\">"; response += String(cp_nb_rx_rcv>0 ? 100*statc.sf12/cp_nb_rx_rcv : 0)+" %"; 
+		response +="</td></tr>";
+#endif
+#if STATISTICS == 3
+	response +="<tr><td class=\"cell\">SF7 rcvd</td>";
+		response +="<td class=\"cell\">"; response +=statc.sf7_0; 
+		response +="<td class=\"cell\">"; response +=statc.sf7_1; 
+		response +="<td class=\"cell\">"; response +=statc.sf7_2; 
+		response +="<td class=\"cell\">"; response +=statc.sf7; 
+		response +="<td class=\"cell\">"; response += String(cp_nb_rx_rcv>0 ? 100*statc.sf7/cp_nb_rx_rcv : 0)+" %"; 
+		response +="</td></tr>";
+		
+	response +="<tr><td class=\"cell\">SF8 rcvd</td>"; 
+		response +="<td class=\"cell\">"; response +=statc.sf8_0;
+		response +="<td class=\"cell\">"; response +=statc.sf8_1;
+		response +="<td class=\"cell\">"; response +=statc.sf8_2;
+		response +="<td class=\"cell\">"; response +=statc.sf8;
+		response +="<td class=\"cell\">"; response += String(cp_nb_rx_rcv>0 ? 100*statc.sf8/cp_nb_rx_rcv : 0)+" %"; 
+		response +="</td></tr>";
+		
+	response +="<tr><td class=\"cell\">SF9 rcvd</td>"; 
+		response +="<td class=\"cell\">"; response +=statc.sf9_0;
+		response +="<td class=\"cell\">"; response +=statc.sf9_1;
+		response +="<td class=\"cell\">"; response +=statc.sf9_2;
+		response +="<td class=\"cell\">"; response +=statc.sf9;
+		response +="<td class=\"cell\">"; response += String(cp_nb_rx_rcv>0 ? 100*statc.sf9/cp_nb_rx_rcv : 0)+" %"; 
+		response +="</td></tr>";
+		
+	response +="<tr><td class=\"cell\">SF10 rcvd</td>"; 
+		response +="<td class=\"cell\">"; response +=statc.sf10_0; 
+		response +="<td class=\"cell\">"; response +=statc.sf10_1; 
+		response +="<td class=\"cell\">"; response +=statc.sf10_2; 
+		response +="<td class=\"cell\">"; response +=statc.sf10; 
+		response +="<td class=\"cell\">"; response += String(cp_nb_rx_rcv>0 ? 100*statc.sf10/cp_nb_rx_rcv : 0)+" %"; 
+		response +="</td></tr>";
+		
+	response +="<tr><td class=\"cell\">SF11 rcvd</td>"; 
+		response +="<td class=\"cell\">"; response +=statc.sf11_0;
+		response +="<td class=\"cell\">"; response +=statc.sf11_1; 
+		response +="<td class=\"cell\">"; response +=statc.sf11_2; 
+		response +="<td class=\"cell\">"; response +=statc.sf11; 
+		response +="<td class=\"cell\">"; response += String(cp_nb_rx_rcv>0 ? 100*statc.sf11/cp_nb_rx_rcv : 0)+" %"; 
+		response +="</td></tr>";
+		
+	response +="<tr><td class=\"cell\">SF12 rcvd</td>"; 
+		response +="<td class=\"cell\">"; response +=statc.sf12_0;
+		response +="<td class=\"cell\">"; response +=statc.sf12_1;
+		response +="<td class=\"cell\">"; response +=statc.sf12_1;
+		response +="<td class=\"cell\">"; response +=statc.sf12;		
+		response +="<td class=\"cell\">"; response += String(cp_nb_rx_rcv>0 ? 100*statc.sf12/cp_nb_rx_rcv : 0)+" %"; 
+		response +="</td></tr>";
 #endif
 
 	response +="</table>";
-
 	server.sendContent(response);
 }
 
@@ -551,8 +679,12 @@ static void sensorData()
 		response += String() + "<tr><td class=\"cell\">";
 		stringTime((statr[i].tmst), response);			// XXX Change tmst not to be millis() dependent
 		response += "</td>";
-		response += String() + "<td class=\"cell\">";
-		printHEX((char *)(& (statr[i].node)),' ',response);
+		response += String() + "<td class=\"cell\">"; 
+
+		if (SerialName((char *)(& (statr[i].node)), response) < 0) {			// works with TRUSTED_NODES >= 1
+			printHEX((char *)(& (statr[i].node)),' ',response);	// else
+		}
+
 		response += "</td>";
 		response += String() + "<td class=\"cell\">" + statr[i].ch + "</td>";
 		response += String() + "<td class=\"cell\">" + freqs[statr[i].ch] + "</td>";
@@ -675,6 +807,8 @@ void sendWebPage(const char *cmd, const char *arg)
 {
 	openWebPage(); yield();
 	
+	wwwButtons();
+	
 	setVariables(cmd,arg); yield();
 
 	statisticsData(); yield();		 			// Node statistics
@@ -682,7 +816,7 @@ void sendWebPage(const char *cmd, const char *arg)
 	systemData(); yield();						// System statistics such as heap etc.
 	wifiData(); yield();						// WiFI specific parameters
 	
-	configData(); yield();						// Display web configuration
+	settingsData(); yield();						// Display web configuration
 	
 	interruptData(); yield();					// Display interrupts only when debug >= 2
 		
@@ -920,6 +1054,7 @@ void setupWWW()
 		server.send ( 302, "text/plain", "");
 	});
 	
+	// Change speed to 160 MHz
 	server.on("/SPEED=80", []() {
 		system_update_cpu_freq(80);
 		server.sendHeader("Location", String("/"), true);
@@ -931,6 +1066,19 @@ void setupWWW()
 		server.send ( 302, "text/plain", "");
 	});
 
+	// Display Statistics
+	server.on("/STAT", []() {
+		buttonStat();
+		server.sendHeader("Location", String("/"), true);
+		server.send ( 302, "text/plain", "");
+	});
+	server.on("/LOG", []() {
+		buttonLog();
+		server.sendHeader("Location", String("/"), true);
+		
+		server.send ( 302, "text/plain", "");
+	});
+	
 	// Update the sketch. Not yet implemented
 	server.on("/UPDATE=1", []() {
 #if A_OTA==1

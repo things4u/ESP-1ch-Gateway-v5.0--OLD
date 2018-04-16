@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.8
-// Date: 2018-03-12
+// Version 5.0.9
+// Date: 2018-04-07
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -21,14 +21,7 @@
 //
 // The LoRa supporting functions are in the section below
 
-// ----------------------------------------------------------------------------
-// Directory listing. s is a string containing HTML/text code so far.
-// The resulting directory listing is appended to s and returned.
-// ----------------------------------------------------------------------------
-//String espDir(String s) {
-//
-//	return s;
-//}
+
 
 // ----------------------------------------------------------------------------
 // Read the gateway configuration file
@@ -145,6 +138,18 @@ int readConfig(const char *fn, struct espGwayConfig *c) {
 			Serial.print(F("NTPS=")); Serial.println(val);
 			(*c).ntps = (uint8_t) val.toInt();
 		}
+		else if (id == "FILENO") {								// log FILENO setting
+			Serial.print(F("FILENO=")); Serial.println(val);
+			(*c).logFileNo = (uint8_t) val.toInt();
+		}
+		else if (id == "FILEREC") {								// FILEREC setting
+			Serial.print(F("FILEREC=")); Serial.println(val);
+			(*c).logFileRec = (uint8_t) val.toInt();
+		}
+		else if (id == "FILENUM") {								// FILEREC setting
+			Serial.print(F("FILENUM=")); Serial.println(val);
+			(*c).logFileNum = (uint8_t) val.toInt();
+		}
 		else {
 			tries++;
 		}
@@ -218,7 +223,133 @@ int writeConfig(const char *fn, struct espGwayConfig *c) {
 	f.print("NTPETIM");  f.print('='); f.print((*c).ntpErrTime); f.print('\n');
 	f.print("NTPERR");  f.print('='); f.print((*c).ntpErr); f.print('\n');
 	f.print("NTPS");  f.print('='); f.print((*c).ntps); f.print('\n');
+	f.print("FILEREC");  f.print('='); f.print((*c).logFileRec); f.print('\n');
+	f.print("FILENO");  f.print('='); f.print((*c).logFileNo); f.print('\n');
+	f.print("FILENUM");  f.print('='); f.print((*c).logFileNum); f.print('\n');
 	
 	f.close();
 	return(1);
 }
+
+// ----------------------------------------------------------------------------
+// Add a line with statitics to the log.
+//
+// We put the check in the function to protect against calling 
+// the function without STAT_LOG being proper defined
+// ToDo: Store the fileNo and the fileRec in the status file to save for 
+// restarts
+// ----------------------------------------------------------------------------
+void addLog(const unsigned char * line, int cnt) 
+{
+#if STAT_LOG == 1
+	char fn[16];
+	
+	if (gwayConfig.logFileRec > LOGFILEREC) {		// Have to make define for this
+		gwayConfig.logFileRec = 0;					// INn new logFile start ith record 0
+		gwayConfig.logFileNo++;					// Increase file ID
+		gwayConfig.logFileNum++;					// Increase number of log files
+	}
+	gwayConfig.logFileRec++;
+	
+	// If we have too many logfies, delete the oldest
+	//
+	if (gwayConfig.logFileNum > LOGFILEMAX){
+		sprintf(fn,"/log-%d", gwayConfig.logFileNo - LOGFILEMAX);
+#if DUSB>=1
+		Serial.print(F("addLog:: Too many logfile, deleting="));
+		Serial.println(fn);
+#endif
+		SPIFFS.remove(fn);
+		gwayConfig.logFileNum--;
+	}
+	
+	// Make sure we have the right fileno
+	sprintf(fn,"/log-%d", gwayConfig.logFileNo); 
+	
+	// If there is no SPIFFS, Error
+	// Make sure to write the config record also
+	if (!SPIFFS.exists(fn)) {
+#if DUSB>=1
+		Serial.print(F("ERROR:: addLog:: file="));
+		Serial.print(fn);
+		Serial.print(F(" does not exist .. rec="));
+		Serial.print(gwayConfig.logFileRec);
+		Serial.println();
+#endif
+	}
+	
+	File f = SPIFFS.open(fn, "a");
+	if (!f) {
+#if DUSB>=1
+		Serial.println("file open failed=");
+		Serial.println(fn);
+#endif
+	}
+	
+#if DUSB>=1
+	if (debug>=1) {
+		Serial.print(F("addLog:: fileno="));
+		Serial.print(gwayConfig.logFileNo);
+		Serial.print(F(", rec="));
+		Serial.print(gwayConfig.logFileRec);
+
+		Serial.print(F(": "));
+		int i;
+		for (i=0; i< 12; i++) {				// The first 12 bytes contain non printble characters
+			Serial.print(line[i],HEX);
+			Serial.print(' ');
+		}
+		Serial.print((char *) &line[i]);	// The rest if the buffer contains ascii
+
+		Serial.println();
+	}
+#endif //DUSB
+	f.write(line, cnt);			// write/append the line to the file
+	f.print('\n');
+	f.close();					// Close the file after appending to it
+
+#endif //STAT_LOG
+}
+
+// ----------------------------------------------------------------------------
+// Print (all) logfiles
+//
+// ----------------------------------------------------------------------------
+void printLog()
+{
+	char fn[16];
+	int i=0;
+#if DUSB>=1
+	while (i< LOGFILEMAX ) {
+		sprintf(fn,"/log-%d", gwayConfig.logFileNo - i);
+		if (!SPIFFS.exists(fn)) break;		// break the loop
+
+		// Open the file for reading
+		File f = SPIFFS.open(fn, "r");
+		
+		int j;
+		for (j=0; j<LOGFILEREC; j++) {
+			
+			String s=f.readStringUntil('\n');
+			if (s.length() == 0) break;
+
+			Serial.println(s.substring(12));			// Skip the first 12 Gateway specific binary characters
+			yield();
+		}
+		i++;
+	}
+#endif
+} //printLog
+
+
+// ----------------------------------------------------------------------------
+// listDir
+//	List the directory and put it in
+// ----------------------------------------------------------------------------
+void listDir(char * dir) 
+{
+#if DUSB>=1
+	
+#endif
+}
+

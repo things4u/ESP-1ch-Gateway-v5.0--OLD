@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.8
-// Date: 2018-03-12
+// Version 5.0.9
+// Date: 2018-04-09
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -17,7 +17,7 @@
 // ========================================================================================
 
 // ----------------------------------------------------------------------------
-// Fill a HEXadecimal Stromg string from a 4-byte char string
+// Fill a HEXadecimal String  from a 4-byte char array
 //
 // ----------------------------------------------------------------------------
 static void printHEX(char * hexa, const char sep, String& response) 
@@ -93,3 +93,101 @@ void SerialTime()
 		
 	return;
 }
+
+// ----------------------------------------------------------------------------
+// SerialStat
+// Print the statistics on Serial (USB) port
+// ----------------------------------------------------------------------------
+
+void SerialStat(uint8_t intr) 
+{
+#if DUSB>=1
+	if (debug>=0) {
+		Serial.print(F("I="));
+		//Serial.print(intr,HEX);
+
+		if (intr & IRQ_LORA_RXTOUT_MASK) Serial.print(F("RXTOUT"));		// 0x80
+		if (intr & IRQ_LORA_RXDONE_MASK) Serial.print(F("RXDONE"));		// 0x40
+		if (intr & IRQ_LORA_CRCERR_MASK) Serial.print(F("CRCERR"));		// 0x20
+		if (intr & IRQ_LORA_HEADER_MASK) Serial.print(F("HEADER"));		// 0x10
+		if (intr & IRQ_LORA_TXDONE_MASK) Serial.print(F("TXDONE"));		// 0x08
+		if (intr & IRQ_LORA_CDDONE_MASK) Serial.print(F("CDDONE"));		// 0x04
+		if (intr & IRQ_LORA_FHSSCH_MASK) Serial.print(F("FHSSCH"));		// 0x02
+		if (intr & IRQ_LORA_CDDETD_MASK) Serial.print(F("CDDETD"));		// 0x01
+			
+		if (intr == 0x00) Serial.print(F("  --  "));
+			
+		Serial.print(F(", F="));
+		Serial.print(ifreq);
+		Serial.print(F(", SF="));
+		Serial.print(sf);
+		Serial.print(F(", E="));
+		Serial.print(_event);
+			
+		Serial.print(F(", S="));
+		//Serial.print(_state);
+		switch (_state) {
+			case S_INIT:
+				Serial.print(F("INIT"));
+			break;
+			case S_SCAN:
+				Serial.print(F("SCAN"));
+			break;
+			case S_CAD:
+				Serial.print(F("CAD "));
+			break;
+			case S_RX:
+				Serial.print(F("RX  "));
+			break;
+			case S_TX:
+				Serial.print(F("TX  "));
+			break;
+			case S_TXDONE:
+				Serial.print(F("TXDN"));
+			break;
+			default:
+				Serial.print(F(" -- "));
+		}
+		Serial.print(F(", t="));
+		Serial.print( micros() - eventTime );
+		Serial.println();
+	}
+#endif
+}
+
+
+	
+// ----------------------------------------------------------------------------
+// SerialName(id, response)
+// Check whether for address a (4 bytes in Unsigned Long) there is a name
+// This function only works if TRUSTED_NODES is set
+// ----------------------------------------------------------------------------
+
+int SerialName(char * a, String& response)
+{
+#if TRUSTED_NODES>=1
+	uint32_t id = ((a[0]<<24) | (a[1]<<16) | (a[2]<<8) | a[3]);
+
+	int i;
+	for ( i=0; i< (sizeof(nodes)/sizeof(nodex)); i++) {
+
+		if (id == nodes[i].id) {
+#if DUSB >=1
+			if (debug>=2) {
+				Serial.print(F("Name="));
+				Serial.print(nodes[i].nm);
+				Serial.print(F(" for node=0x"));
+				Serial.print(nodes[i].id,HEX);
+				Serial.println();
+			}
+#endif
+			response += nodes[i].nm;
+			return(i);
+		}
+	}
+
+#endif
+	return(-1);									// If no success OR is TRUSTED NODES not defined
+}
+
+

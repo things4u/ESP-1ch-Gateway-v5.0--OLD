@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.8
-// Date: 2018-03-12
+// Version 5.0.9
+// Date: 2018-03-09
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -30,7 +30,7 @@
 // ----------------------------------------------------------------------------
 int sendPacket(uint8_t *buf, uint8_t length) 
 {
-	// Received package with Meta Data:
+	// Received package with Meta Data (for example):
 	// codr	: "4/5"
 	// data	: "Kuc5CSwJ7/a5JgPHrP29X9K6kf/Vs5kU6g=="	// for example
 	// freq	: 868.1 									// 868100000
@@ -199,7 +199,7 @@ int sendPacket(uint8_t *buf, uint8_t length)
 
 #if DUSB>=1
 	Serial.println(F("sendPacket:: fini OK"));
-#endif
+#endif // DISB
 	return 1;
 }//sendPacket
 
@@ -209,7 +209,7 @@ int sendPacket(uint8_t *buf, uint8_t length)
 // ----------------------------------------------------------------------------
 // UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP
 // Based on the information read from the LoRa transceiver (or fake message)
-// build a gateway message to send upstream.
+// build a gateway message to send upstream (to the user somewhere on the web).
 //
 // parameters:
 // tmst: Timestamp to include in the upstream message
@@ -236,7 +236,7 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 #if _CHECK_MIC==1
 	unsigned char NwkSKey[16] = _NWKSKEY;
 	checkMic(message, messageLength, NwkSKey);
-#endif
+#endif // _CHECK_MIC
 
 	// Read SNR and RSSI from the register. Note: Not for internal sensors!
 	// For internal sensor we fake these values as we cannot read a register
@@ -259,7 +259,7 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 	statr[0].prssi = prssi - rssicorr;
 #if RSSI==1
 	statr[0].rssi = _rssi - rssicorr;
-#endif
+#endif // RSII
 	statr[0].sf = LoraUp.sf;
 #if DUSB>=2
 	if (debug>=0) {
@@ -273,7 +273,7 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 			Serial.println();
 		}
 	}
-#endif
+#endif // DUSB
 	statr[0].node = ( message[1]<<24 | message[2]<<16 | message[3]<<8 | message[4] );
 
 #if STATISTICS >= 2
@@ -285,8 +285,38 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 		case SF11: statc.sf11++; break;
 		case SF12: statc.sf12++; break;
 	}
-#endif	
-#endif
+#endif // STATISTICS >= 2
+
+#if STATISTICS >= 3
+	if (statr[0].ch == 0) switch (statr[0].sf) {
+		case SF7: statc.sf7_0++; break;
+		case SF8: statc.sf8_0++; break;
+		case SF9: statc.sf9_0++; break;
+		case SF10: statc.sf10_0++; break;
+		case SF11: statc.sf11_0++; break;
+		case SF12: statc.sf12_0++; break;
+	}
+	else 
+	if (statr[0].ch == 1) switch (statr[0].sf) {
+		case SF7: statc.sf7_1++; break;
+		case SF8: statc.sf8_1++; break;
+		case SF9: statc.sf9_1++; break;
+		case SF10: statc.sf10_1++; break;
+		case SF11: statc.sf11_1++; break;
+		case SF12: statc.sf12_1++; break;
+	}
+	else 
+	if (statr[0].ch == 2) switch (statr[0].sf) {
+		case SF7: statc.sf7_2++; break;
+		case SF8: statc.sf8_2++; break;
+		case SF9: statc.sf9_2++; break;
+		case SF10: statc.sf10_2++; break;
+		case SF11: statc.sf11_2++; break;
+		case SF12: statc.sf12_2++; break;
+	}
+#endif // STATISTICS >= 3
+
+#endif // STATISTICS >= 2
 
 #if DUSB>=1	
 	if (debug>=1) {
@@ -307,19 +337,12 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 		Serial.println();
 		yield();
 	}
-#endif
+#endif // DUSB
 
 // Show received message status on OLED display
 #if OLED>=1
     char timBuff[20];
     sprintf(timBuff, "%02i:%02i:%02i", hour(), minute(), second());
-	
-//	char addrBuff[20;
-//	if (message[4] < 0x10) display.drawString( 40, 32, "0"+String(message[4], HEX)); else display.drawString( 40, 32, String(message[4], HEX));
-//	if (message[3] < 0x10) display.drawString( 61, 32, "0"+String(message[3], HEX)); else display.drawString( 61, 32, String(message[3], HEX));
-//	if (message[2] < 0x10) display.drawString( 82, 32, "0"+String(message[2], HEX)); else display.drawString( 82, 32, String(message[2], HEX));
-//	if (message[1] < 0x10) display.drawString(103, 32, "0"+String(message[1], HEX)); else display.drawString(103, 32, String(message[1], HEX));
-//	sprintf(addrBuff, "%02X,:%02X:%02X:%02X", message[4], message[3], message[2], message[1]);
 	
     display.clear();
     display.setFont(ArialMT_Plain_16);
@@ -329,8 +352,10 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 	
     display.drawString(0, 0, "Time: " );
     display.drawString(40, 0, timBuff);
+	
     display.drawString(0, 16, "RSSI: " );
     display.drawString(40, 16, String(prssi-rssicorr));
+	
     display.drawString(70, 16, ",SNR: " );
     display.drawString(110, 16, String(SNR) );
 	  
@@ -344,7 +369,7 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
     display.drawString(0, 48, "LEN: " );
     display.drawString(40, 48, String((int)messageLength) );
     display.display();
-	yield();
+	//yield();
 
 #endif //OLED>=1
 			
@@ -359,7 +384,7 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 		Serial.println(F("buildPacket:: b64 error"));
 		if (debug>=2) Serial.flush();
 	}
-#endif
+#endif // DUSB
 	base64_encode(b64, (char *) message, messageLength);// max 341
 	// start composing datagram with the header 
 	uint8_t token_h = (uint8_t)rand(); 					// random token
@@ -394,9 +419,9 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 	++buff_index;
 	j = snprintf((char *)(buff_up + buff_index), TX_BUFF_SIZE-buff_index, "\"tmst\":%u", tmst);
 #if DUSB>=1
-		if ((j<0) && (debug>=1)) {
-			Serial.println(F("buildPacket:: Error "));
-		}
+	if ((j<0) && (debug>=1)) {
+		Serial.println(F("buildPacket:: Error "));
+	}
 #endif
 	buff_index += j;
 	ftoa((double)freq/1000000,cfreq,6);					// XXX This can be done better
@@ -470,6 +495,14 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 	buff_up[buff_index] = '}';
 	++buff_index;
 	buff_up[buff_index] = 0; 							// add string terminator, for safety
+
+#if STAT_LOG == 1	
+	// Do statistics logging. In first version we might only
+	// write part of the record to files, later more
+
+	addLog( (unsigned char *)(buff_up), buff_index );
+#endif	
+	
 #if DUSB>=1
 	if (debug>=2) {
 		Serial.print(F("RXPK:: "));

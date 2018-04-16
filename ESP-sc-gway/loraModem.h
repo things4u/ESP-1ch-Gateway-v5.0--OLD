@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.8
-// Date: 2018-03-12
+// Version 5.0.9
+// Date: 2018-04-07
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many other contributors.
@@ -28,7 +28,9 @@
 // In order to make the CAD behaviour dynamic we set a variable
 // when the CAD functions are defined. Value of 3 is minimum frequencies a
 // gateway should support to be fully LoRa compliant.
-#define NUM_HOPS 3								// for real gateway 3 should be the minimum
+// For performance reasons, 3 is the maximum as well!
+//
+#define NUM_HOPS 3
 
 // Do not change these setting for RSSI detection. They are used for CAD
 // Given the correction factor of 157, we can get to -122dB with this rating
@@ -41,9 +43,11 @@
 #define RSSI_WAIT	6							// was 25
 
 // How long will it take when hopping before a CDONE or CDETD value
-// is measured.
+// should be present and measured.
 //
-#define EVENT_WAIT 3000							// was 2000
+#define EVENT_WAIT 5000							// was 2000
+
+
 
 // Our code should correct the server Tramission delay settings
 long txDelay= 0x00;								// tx delay time on top of server TMST
@@ -168,12 +172,26 @@ struct stat_c {
 	unsigned long sf10;						// Spreading factor 10
 	unsigned long sf11;						// Spreading factor 11
 	unsigned long sf12;						// Spreading factor 12
+
+	// If STATISTICS is 3, we add statistics about the channel 
+	// When only one changgel is used, we normally know the spread of
+	// statistics, but when HOP mode is selected we migth want to add this info
+#if STATISTICS >=3
+	unsigned long sf7_0, sf7_1, sf7_2;
+	unsigned long sf8_0, sf8_1, sf8_2;
+	unsigned long sf9_0, sf9_1, sf9_2;
+	unsigned long sf10_0, sf10_1, sf10_2;
+	unsigned long sf11_0, sf11_1, sf11_2;
+	unsigned long sf12_0, sf12_1, sf12_2;
+#endif
 	
 	uint16_t boots;							// Number of boots
 	uint16_t resets;
 } stat_c;
 struct stat_c statc;
+
 #endif
+
 // History of received uplink messages from nodes
 struct stat_t statr[MAX_STAT];
 
@@ -360,12 +378,12 @@ struct LoraUp {
 
 // ----------------------------------------
 // Bits masking the corresponding IRQs from the radio
-#define IRQ_LORA_RXTOUT_MASK 		0x80
-#define IRQ_LORA_RXDONE_MASK 		0x40
+#define IRQ_LORA_RXTOUT_MASK 		0x80	// RXTOUT
+#define IRQ_LORA_RXDONE_MASK 		0x40	// RXDONE after receiving the header and CRC, we receive payload part
 #define IRQ_LORA_CRCERR_MASK 		0x20
-#define IRQ_LORA_HEADER_MASK 		0x10
+#define IRQ_LORA_HEADER_MASK 		0x10	// valid HEADER mask. This interrupt is first when receiving a message
 #define IRQ_LORA_TXDONE_MASK 		0x08
-#define IRQ_LORA_CDDONE_MASK 		0x04
+#define IRQ_LORA_CDDONE_MASK 		0x04	// CDDONE
 #define IRQ_LORA_FHSSCH_MASK 		0x02
 #define IRQ_LORA_CDDETD_MASK 		0x01
 

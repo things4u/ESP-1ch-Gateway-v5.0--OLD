@@ -217,6 +217,22 @@ Instead choose a OLED solution that works over I2C.
 The following values are defined for OLED:
 1. 0.9 inch OLED screen for I2C bus
 2. 1.1 inch OLED screen for I2C bus
+
+### Define to gather statistics
+
+When this is defined (==1) we will gather the statistics of every message and output
+it to the SPIFFS filesystem. We make sure that we use a number of files with each a fixed number of records
+for statistics. The REC number tells us how many records are allowed in each statistics file.
+As soon as the REC number is higher than the number of records allowed, we open a new file.
+Once the number of files exceeds the NUM amount of statistics files, we delete the oldeest file and 
+open a new file.
+When selecting the "log" button on top of the GUI screen, all rthe log files are ouptu to the USB
+Serial device. This way, we can examine far more records than fitting the GUI screen or the Serial
+output.
+ 
+ \#define STAT_LOG 1
+ 
+
  
 Setting the I2C SDA/SCL pins is done in the ESP-sc-gway.h file right after the #define of OLED.
 Standard the ESP8266 uses pins D1 and D2 for the I2C bus SCL and SDA lines but these can be changed by the user.
@@ -289,6 +305,12 @@ After binding to the access point with your mobile phone or computer, go to htp:
 The gateway will then reset and bind to the given network. If all goes well you are now set and the ESP8266 will remember the network that it must connect to. NOTE: As long as the accesspoint that the gateway is bound to is present, the gateway will not any longer work with the wpa list of known access points.
 If necessary, you can delete the current access point in the webserver and power cycle the gateway to force it to read the wpa array again.
 
+## Specify a name for known nodes
+- It is possible to substitue the address for known nodes with a chosen name. This will greatly enhance the readibility of the statistics overview 
+especially for your own nodes, Now you will find names for your own nodes in the webserver.
+- set the TRUSTED_NODES to either 0 (no names), 1 (specify names for known nodes) and 2 (Do not show or transfer to TTN other than known nodes)
+- Although this will work with OTAA nodes as well, please remind that OTAA nodes will change
+their LORA id with every reboot. So for these nodes this function does not add much value.
 
 ### Other Settings
 

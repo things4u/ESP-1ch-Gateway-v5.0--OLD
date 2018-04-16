@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.8 H
-// Date: 2018-03-16
+// Version 5.0.9 H
+// Date: 2018-04-16
 //
 // Based on work done by Thomas Telkamp for Raspberry PI 1ch gateway and many others.
 // Contibutions of Dorijan Morelj and Andreas Spies for OLED support.
@@ -19,7 +19,7 @@
 //
 // ----------------------------------------------------------------------------------------
 
-#define VERSION "V.5.0.8.H; 180316a"
+#define VERSION "V.5.0.9.H; 180416a"
 
 // This value of DEBUG determines whether some parts of code get compiled.
 // Also this is the initial value of debug parameter. 
@@ -84,7 +84,7 @@
 // 0= No statistics
 // 1= Keep track of messages statistics, number determined by MAX_STAT
 // 2= Option 1 + Keep track of messages received PER each SF (default)
-#define STATISTICS 2
+#define STATISTICS 3
 
 // Maximum number of statistics records gathered. 20 is a good maximum (memory intensive)
 #define MAX_STAT 20
@@ -146,6 +146,14 @@
 //	However that should not interfere with regular gateway operation but instead offer 
 //	functions to set/reset certain parameters from remote.
 #define GATEWAYMGT 0
+
+// Do extensive loggin
+// Use the ESP8266 SPIFS filesystem to do extensive logging.
+// We must take care that the filesystem never(!) is full, and for that purpose we
+// rather have new records/line of statistics than very old.
+// Of course we must store enough records to make the filesystem work
+//
+#define STAT_LOG 1
 
 // Name of he configfile in SPIFFs	filesystem
 // In this file we store the configuration and other relevant info that should

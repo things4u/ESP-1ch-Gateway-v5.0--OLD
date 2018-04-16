@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.8
-// Date: 2018-03-15
+// Version 5.0.9
+// Date: 2018-04-07
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -78,8 +78,9 @@ void stateMachine()
 	uint8_t rssi;
 
 	// If there is NO event interrupt detected but the state machine is called anyway
+	// then we know its a soft interrupt and we wait the frequency _hop out.
 	//
-	if (intr == 0x00) 
+	if ((intr == 0x00) && (_hop))
 	{
 		// If we hop and we are scanning we have to make sure that we allow enought time to detect
 		// CDDONE or CDECT. But if we do not receive interrupts, we have to schedule
@@ -87,11 +88,10 @@ void stateMachine()
 		// The process is such that we scan on SF7 (the shortest) preamble and if
 		// nothing detected within a scan, we switch to another frequency.
 		//
-		if ((_hop) && 
-			((_state == S_SCAN) || (_state == S_CAD)) ) {
+		if ((_state == S_SCAN) || (_state == S_CAD))  {
 
 			// If there is no interrupt, _event has been set by software and not in
-			// and interrupt handler.
+			// an interrupt handler.
 			_event=0;
 			
 			// As long as there is no interrupt event, stay in this loop.
@@ -99,41 +99,28 @@ void stateMachine()
 			// system and the register REG_IRQ_FLAGS will reflect this.
 			// For SF7, one token takes XXX uSecs
 			//
-			uint32_t time_e = micros();
+			eventTime = micros();
 			while ( (_event == 0) &&
-					((((micros() - time_e) + 0xFFFFFFFF) % 0xFFFFFFFF) < EVENT_WAIT) &&
-					(_state == S_SCAN) )
+					(((micros() - eventTime + 0xFFFFFFFF) % 0xFFFFFFFF) < EVENT_WAIT) &&
+					((_state == S_SCAN) || (_state == S_CAD)) )
 			{
 				// If an event arises during this wait, we break the while
-				delayMicroseconds(50);								// XXX 180103
+				delayMicroseconds(10);								// XXX 180103
 			}
 			
 			yield();
 			
-			// We received a real interrupt, so take the action
+			// If we received a real interrupt, take the action
 			// by the stateMachine and read interrupt.
 			//
 			if (_event != 0) {
+				_event=0;
 				flags = readRegister(REG_IRQ_FLAGS);
 				mask  = readRegister(REG_IRQ_FLAGS_MASK);
 				//intr  = intr | (flags & ( ~ mask ));
 				intr  = (flags & ( ~ mask ));
 #if DUSB>=1
-				if ((debug>=1)&&(intr!=0)) {
-					Serial.print("INTR=0x");			// 0x04 = CDDONE
-					Serial.print(intr,HEX);
-					Serial.print(F(", F="));
-					Serial.print(ifreq);
-					Serial.print(F(", SF="));
-					Serial.print(sf);
-					Serial.print(F(", E="));
-					Serial.print(_event);
-					Serial.print(F(", S="));
-					Serial.print(_state);
-					Serial.print(F(", t="));
-					Serial.print( micros() - time_e );
-					Serial.println();
-				}
+				if (debug >=1 ) SerialStat(intr);
 #endif				
 			}
 			// If no interrupt received, switch both channel/frequency
@@ -141,25 +128,26 @@ void stateMachine()
 			//
 			else {
 				hop();									// increment ifreq = (ifreq + 1) % NUM_HOPS ;
-				cadScanner();							// Reset to SF7, leave frequency "freqs[ifreq]"
+				cadScanner();							// Reset to initial SF, leave frequency "freqs[ifreq]"
+				_state = S_SCAN;
 #if DUSB>=1
-				if (debug>=3) {
-					Serial.print(F("E="));
-					Serial.println(micros() - time_e);
-				}
+				if (debug >= 1) SerialStat(intr);
 #endif
 				_event=1;								//XXX 06/03, start State Machine again
 				return;
 			}	
-		}// hop
+		}// SCAN or CAD
 		
-		// If not hopping make sure to continue without doing anything
+		// If not in SCAN or CAD state
 		// we only act on interrupts in this mode ((_event!=0) && (intr!=0))
 		// 
 		else {
+		
 			_event=0;
+			
 		}
-	}// intr==0
+	}// intr==0 && _hop
+	
 	
 	// This is the actual state machine of the gateway
 	// and its next actions are depending on the state we are in.
@@ -168,7 +156,6 @@ void stateMachine()
 	//
 	switch (_state) 
 	{
-	
 	  // --------------------------------------------------------------
 	  // If the state is init, we are starting up.
 	  // The initLoraModem() function is already called in setup();
@@ -206,7 +193,7 @@ void stateMachine()
 				MAP_DIO0_LORA_RXDONE | 
 				MAP_DIO1_LORA_RXTOUT | 
 				MAP_DIO2_LORA_NOP | 
-				MAP_DIO3_LORA_CRC ));
+				MAP_DIO3_LORA_CRC));
 			
 			// Since new state is S_RX, accept no interrupts except RXDONE or RXTOUT		
 			writeRegister(REG_IRQ_FLAGS_MASK, (uint8_t) ~(
@@ -216,9 +203,11 @@ void stateMachine()
 				IRQ_LORA_CRCERR_MASK));
 			
 			delayMicroseconds( RSSI_WAIT );				// Wait some microseconds less
+			
 			// Starting with version 5.0.1 the waittime is dependent on the SF
 			// So for SF12 we wait longer (2^7 == 128 uSec) and for SF7 4 uSec.
 			//delayMicroseconds( (0x01 << ((uint8_t)sf - 5 )) );
+			
 			rssi = readRegister(REG_RSSI);				// Read the RSSI
 			_rssi = rssi;								// Read the RSSI in the state variable
 
@@ -248,7 +237,7 @@ void stateMachine()
 			// The pRSSI (package RSSI) is calculated upon successful reception of message
 			// So we expect that this value makes little sense for the moment with CDDONE.
 			// Set the rssi as low as the noise floor. Lower values are not recognized then.
-			// Every cycle starts with ifreq==0 and sf=SF7
+			// Every cycle starts with ifreq==0 and sf=SF7 (or the set init SF)
 			//
 			if ( rssi > RSSI_LIMIT )					// Is set to 35
 			{
@@ -310,8 +299,8 @@ void stateMachine()
 		//
 		else {
 #if DUSB>=1
-			Serial.print(F("SCAN unknown intr="));
-			Serial.println(intr,HEX);
+			Serial.print(F("SCAN unknown:: "));
+			SerialStat(intr);
 #endif
 			_state=S_SCAN;
 			_event=1;								// XXX 06/03 loop until interrupt
@@ -400,17 +389,17 @@ void stateMachine()
 			
 				sf = (sf_t)((uint8_t)sf+1);				// Increment sf
 				setRate(sf, 0x04);						// Set SF with CRC==on
+				
+				// reset interrupt flags for CAD Done
+				_event=0;								// XXX 180324, when increasing SF loop, ws 0x00
+				writeRegister(REG_IRQ_FLAGS_MASK, (uint8_t) 0x00);	// Reset the interrupt mask
+				//writeRegister(REG_IRQ_FLAGS, IRQ_LORA_CDDONE_MASK | IRQ_LORA_CDDETD_MASK);
+				writeRegister(REG_IRQ_FLAGS, 0xFF );	// This will prevent the CDDETD from being read
 
 				opmode(OPMODE_CAD);						// Scanning mode
 				
 				delayMicroseconds(RSSI_WAIT);
 				rssi = readRegister(REG_RSSI);			// Read the RSSI
-
-				// reset interrupt flags for CAD Done
-				_event=0;								// XXX 180324, when increasing SF loop, ws 0x00
-				writeRegister(REG_IRQ_FLAGS_MASK, (uint8_t) 0x00);	// Reset the interrupt mask
-				writeRegister(REG_IRQ_FLAGS, IRQ_LORA_CDDONE_MASK | IRQ_LORA_CDDETD_MASK);
-				//writeRegister(REG_IRQ_FLAGS, 0xFF );	// This will prevent the CDDETD from being read
 
 #if DUSB>=1
 				if (debug>=2) {
@@ -455,7 +444,7 @@ void stateMachine()
 		//
 		else if (intr == 0x00) {
 #if DUSB>=0
-			if (debug>=1) {
+			if (debug>=3) {
 				Serial.println("Err CAD:: intr is 0x00");
 			}
 #endif
@@ -468,8 +457,8 @@ void stateMachine()
 		else {
 #if DUSB>=1
 			if (debug>=0) { 
-				Serial.print(F("Err CAD: Unknown interrupt=")); 
-				Serial.println(intr);
+				Serial.print(F("Err CAD: Unknown::")); 
+				SerialStat(intr);
 			}
 #endif
 			_state = S_SCAN;
@@ -490,6 +479,7 @@ void stateMachine()
 	  // Else if it is RXTOUT interrupt
 	  //	So we handle this
 	  // Else
+	  //	Go back to SCAN
 	  //
 	  case S_RX:
 	
@@ -655,16 +645,33 @@ void stateMachine()
 
 		}
 		
-		// The interrupt received is not RXDONE nor RXTOUT
-		// therefore we wait
-		else {
-			if (_hop) {
-				_event=0;
-			}
+		else if (intr & IRQ_LORA_HEADER_MASK) {
+			// This interrupt means we received an header successfully
+			// which is normall an indication of RXDONE
+			//writeRegister(REG_IRQ_FLAGS, IRQ_LORA_HEADER_MASK);
 #if DUSB>=1
 			if (debug>=1) {
-				Serial.print(F("S_RX:: no RXDONE or RXTOUT intr="));
-				Serial.println(intr);
+				Serial.print(F("RX HEADER:: "));
+				SerialStat(intr);
+			}
+#endif
+			_event=1;
+		}
+
+		// The interrupt received is not RXDONE, RXTOUT or HEADER
+		// therefore we wait. Make sure to clear the interrupt
+		// as HEADER interrupt comes just before RXDONE
+		else {
+			//writeRegister(REG_IRQ_FLAGS_MASK, (uint8_t) 0x00 );
+			//writeRegister(REG_IRQ_FLAGS, (uint8_t) 0xFF);
+			if (_hop) {
+				_event=1;
+			}
+			//_state=S_SCAN;					// NONONONONONONONONO do NOT change state									
+#if DUSB>=1
+			if (debug>=1) {
+				Serial.print(F("S_RX:: no RXDONE, RXTOUT, HEADER:: "));
+				SerialStat(intr);
 			}
 #endif
 		}// int not RXDONE or RXTOUT

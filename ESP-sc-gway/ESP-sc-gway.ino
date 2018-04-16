@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.8
-// Date: 2018-03-12
+// Version 5.0.9
+// Date: 2018-04-07
 // Author: Maarten Westenberg (mw12554@hotmail.com)
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1-ch gateway
@@ -39,11 +39,13 @@
 #include <cstdlib>
 #include <sys/time.h>
 #include <cstring>
+#include <string>								// C++ specifix string functions
+
 #include <SPI.h>
 #include <TimeLib.h>							// http://playground.arduino.cc/code/time
 #include <DNSServer.h>							// Local DNSserver
 #include <ArduinoJson.h>
-#include <SimpleTimer.h>
+//#include <SimpleTimer.h>
 
 #include <ESP8266WiFi.h>						// Which is specific for ESP8266
 						
@@ -71,7 +73,7 @@ extern "C" {
 #include "oLED.h"
 
 
-#if WIFIMANAGER>0
+#if WIFIMANAGER==1
 #include <WiFiManager.h>						// Library for ESP WiFi config through an AP
 #endif
 
@@ -143,18 +145,17 @@ WiFiUDP Udp;
 time_t startTime = 0;							// The time in seconds since 1970 that the server started
 												// be aware that UTP time has to succeed for meaningful values.
 												// We use this variable since millis() is reset every 50 days...
-												
+uint32_t eventTime = 0;							// Timing of _event to change value (or not).
 uint32_t statTime = 0;							// last time we sent a stat message to server
 uint32_t pulltime = 0;							// last time we sent a pull_data request to server
-uint32_t lastTmst = 0;
+uint32_t lastTmst = 0;							// Last activity Timer
+
 #if A_SERVER==1
 uint32_t wwwtime = 0;
 #endif
 #if NTP_INTR==0
 uint32_t ntptimer = 0;
 #endif
-
-SimpleTimer timer; 								// Timer is needed for delayed sending
 
 #define TX_BUFF_SIZE  1024						// Upstream buffer to send to MQTT
 #define RX_BUFF_SIZE  1024						// Downstream received from MQTT
@@ -167,23 +168,38 @@ uint16_t frameCount=0;							// We write this to SPIFF file
 // volatile bool inSPI This initial value of mutex is to be free,
 // which means that its value is 1 (!)
 // 
-int inSPI = 1;
-int inSPO = 1;
 int mutexSPI = 1;
-
-//volatile bool inIntr = false;
-int inIntr;
 
 // ----------------------------------------------------------------------------
 // FORWARD DECARATIONS
-// These forward declarations are done since _loraModem.ino is linked by the
+// These forward declarations are done since other .ino fils are linked by the
 // compiler/linker AFTER the main ESP-sc-gway.ino file. 
 // And espcesially when calling functions with ICACHE_RAM_ATTR the complier 
 // does not want this.
+// Solution can also be to pecify less STRICT compile options in Makefile
 // ----------------------------------------------------------------------------
 
 void ICACHE_RAM_ATTR Interrupt_0();
 void ICACHE_RAM_ATTR Interrupt_1();
+
+int sendPacket(uint8_t *buf, uint8_t length);		// _txRx.ino
+void setupWWW();									// _wwwServer.ino
+void SerialTime();									// _utils.ino
+static void printIP(IPAddress ipa, const char sep, String& response);	// _wwwServer.ino
+
+void init_oLED();									// oLED.ino
+void acti_oLED();
+void addr_oLED();
+
+void setupOta(char *hostname);
+void initLoraModem();								// _loraModem.ino
+void cadScanner();
+void rxLoraModem();									// _loraModem.ino
+void writeRegister(uint8_t addr, uint8_t value);	// _loraModem.ino
+
+void stateMachine();								// _stateMachine.ino
+
+void SerialStat(uint8_t intr);						// _utils.ino
 
 #if MUTEX==1
 // Forward declarations
@@ -428,7 +444,7 @@ int WlanReadWpa() {
 	if (gwayConfig.fcnt != (uint8_t) 0) frameCount = gwayConfig.fcnt+10;
 #endif
 	
-#if WIFIMANAGER > 0
+#if WIFIMANAGER==1
 	String ssid=gwayConfig.ssid;
 	String pass=gwayConfig.pass;
 
@@ -1166,7 +1182,11 @@ void setup() {
 	Serial.flush();
 	delay(500);
 
-	if (SPIFFS.begin()) Serial.println(F("SPIFFS init success"));
+	if (SPIFFS.begin()) {
+		Serial.println(F("SPIFFS init success"));
+	}
+	else {
+	}
 	
 #if SPIFF_FORMAT>=1
 	SPIFFS.format();								// Normally disabled. Enable only when SPIFFS corrupt
@@ -1402,7 +1422,12 @@ void loop ()
 		(msgTime < statr[0].tmst) ) 
 	{
 #if DUSB>=1
-		if (debug>=0) Serial.println("REINIT");
+		if (debug>=1) {
+			Serial.print("REINIT: ");
+			Serial.print( _MSG_INTERVAL );
+			Serial.print(F(" "));
+			SerialStat(0);
+		}
 #endif
 
 		if ((_cad) || (_hop)) {
@@ -1536,7 +1561,9 @@ void loop ()
 		initLoraModem();								// XXX 180326, after adapting this function 
 		if (_cad) {
 #if DUSB>=1
-			if (debug>=1) Serial.println(F("PULL:: _state set to S_SCAN"));
+			if (debug>=1) {
+				Serial.print(F("PULL:: _state set to S_SCAN"));
+			}
 #endif
 			_state = S_SCAN;
 			cadScanner();

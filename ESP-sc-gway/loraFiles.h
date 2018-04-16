@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.8
-// Date: 2018-03-12
+// Version 5.0.9
+// Date: 2018-04-07
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -19,10 +19,20 @@
 //
 // ----------------------------------------------------------------------------------------
 
+// At this moment there is only one record written to the ESP8266
+// filesystem. We can add more info, whcich makes the gateway even more usable,
+// however for large data we should only append to the existing file used.
+// This also means we'll have to check for available space so we won't run out of 
+// storage space to quickly.
+// One way would be to use let's say 10 files of each 10000 lines and when full
+// delete the first file and start sriting on a new one (for example)
+
+
 
 
 // Definition of the configuration record that is read at startup and written
 // when settings are changed.
+
 struct espGwayConfig {
 	uint16_t fcnt;				// =0 as init value	XXX Could be 32 bit in size
 	uint16_t boots;				// Number of restarts made by the gateway after reset
@@ -37,6 +47,10 @@ struct espGwayConfig {
 	uint8_t ch;					// index to freqs array, freqs[ifreq]=868100000 default
 	uint8_t sf;					// range from SF7 to SF12
 	uint8_t debug;				// range 0 to 4
+
+	uint16_t logFileRec;		// Logging File Record number
+	uint16_t logFileNo;			// Logging File Number
+	uint16_t logFileNum;		// Number of log files
 	
 	bool cad;					// is CAD enabled?
 	bool hop;					// Is HOP enabled (Note: Should be disabled)
@@ -47,4 +61,16 @@ struct espGwayConfig {
 	String pass;				// Password
 } gwayConfig;
 
+// Define a log record to be written to the log file
+// Keep logfiles SHORT in name! to save memory
+#if STAT_LOG == 1
 
+// We do keep admin of logfiles by number
+// 
+//uint32_t logFileNo = 1;		// Included in struct espGwayConfig LogFile number
+//uint32_t logFileRec = 0;		// Number of records in a single logfile
+//uint32_t logFileNum = 1;		// Number of log files
+#define LOGFILEMAX 10
+#define LOGFILEREC 100
+
+#endif
