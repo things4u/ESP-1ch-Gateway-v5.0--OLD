@@ -144,8 +144,8 @@ struct pins {
 #error "Pin Definitions _PIN_OUT must be 1(HALLARD) or 2 (COMRESULT)"
 #endif
 
-// STATR contains the statictis that are kept by message. 
-// Ech time a message is received or sent the statistics are updated.
+// stat_t contains the statistics that are kept by message. 
+// Each time a message is received or sent the statistics are updated.
 // In case STATISTICS==1 we define the last MAX_STAT messages as statistics
 struct stat_t {
 	unsigned long tmst;						// Time since 1970 in seconds		
@@ -160,11 +160,11 @@ struct stat_t {
 
 
 #if STATISTICS >= 1
-// STATC contains the statistic that are gateway related and not per
+// stat_c contains the statistics that are gateway related and not per
 // message. Example: Number of messages received on SF7 or number of (re) boots
-// So where statr contains the statistics gathered per packet the statc
-// contains general statics of the node
-#if STATISTICS >= 2							// Only if we explicitely set it higher
+// So where statr contains the statistics gathered per packet the stat_c
+// contains general statistics of the node
+#if STATISTICS >= 2							// Only if we explicitly set it higher
 struct stat_c {
 	unsigned long sf7;						// Spreading factor 7 statistics/Count
 	unsigned long sf8;						// Spreading factor 8
@@ -174,7 +174,7 @@ struct stat_c {
 	unsigned long sf12;						// Spreading factor 12
 
 	// If STATISTICS is 3, we add statistics about the channel 
-	// When only one changgel is used, we normally know the spread of
+	// When only one channel is used, we normally know the spread of
 	// statistics, but when HOP mode is selected we migth want to add this info
 #if STATISTICS >=3
 	unsigned long sf7_0, sf7_1, sf7_2;
@@ -231,7 +231,7 @@ struct LoraUp {
 // ============================================================================
 // Set all definitions for Gateway
 // ============================================================================	
-// Register definitions. These are the addresses of the TFM95, SX1276 that we 
+// Register definitions. These are the addresses of the RFM95, SX1276 that we 
 // need to set in the program.
 
 #define REG_FIFO                    0x00		// rw FIFO address

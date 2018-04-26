@@ -71,7 +71,7 @@ void setupOta(char *hostname) {
 	Serial.println(WiFi.localIP());
 	
 	// Only if the Webserver is active also
-#if A_SERVER==2										// Displaed for the moment
+#if A_SERVER==2										// Displayed for the moment
 	ESPhttpUpdate.rebootOnUpdate(false);
    
 	server.on("/esp", HTTP_POST, [&](){

@@ -171,12 +171,12 @@ uint16_t frameCount=0;							// We write this to SPIFF file
 int mutexSPI = 1;
 
 // ----------------------------------------------------------------------------
-// FORWARD DECARATIONS
+// FORWARD DECLARATIONS
 // These forward declarations are done since other .ino fils are linked by the
 // compiler/linker AFTER the main ESP-sc-gway.ino file. 
-// And espcesially when calling functions with ICACHE_RAM_ATTR the complier 
+// And especially when calling functions with ICACHE_RAM_ATTR the complier 
 // does not want this.
-// Solution can also be to pecify less STRICT compile options in Makefile
+// Solution can also be to specify less STRICT compile options in Makefile
 // ----------------------------------------------------------------------------
 
 void ICACHE_RAM_ATTR Interrupt_0();
@@ -689,7 +689,7 @@ int readUdp(int packetSize)
 
 	if (WlanConnect(10) < 0) {
 #if DUSB>=1
-			Serial.print(F("readdUdp: ERROR connecting to WLAN"));
+			Serial.print(F("readUdp: ERROR connecting to WLAN"));
 			if (debug>=2) Serial.flush();
 #endif
 			Udp.flush();
@@ -701,7 +701,7 @@ int readUdp(int packetSize)
 	
 	if (packetSize > RX_BUFF_SIZE) {
 #if DUSB>=1
-		Serial.print(F("readUDP:: ERROR package of size: "));
+		Serial.print(F("readUdp:: ERROR package of size: "));
 		Serial.println(packetSize);
 #endif
 		Udp.flush();
@@ -712,7 +712,7 @@ int readUdp(int packetSize)
 	// In practice however this can be any sender!
 	if (Udp.read(buff_down, packetSize) < packetSize) {
 #if DUSB>=1
-		Serial.println(F("readUsb:: Reading less chars"));
+		Serial.println(F("readUdp:: Reading less chars"));
 		return(-1);
 #endif
 	}
@@ -765,7 +765,7 @@ int readUdp(int packetSize)
 #endif
 		break;
 	
-		// This message is sent by the server to acknoledge receipt of a
+		// This message is sent by the server to acknowledge receipt of a
 		// (sensor) message sent with the code above.
 		case PKT_PUSH_ACK:	// 0x01 DOWN
 #if DUSB>=1
@@ -791,7 +791,7 @@ int readUdp(int packetSize)
 		break;
 	
 		// This message type is used to confirm OTAA message to the node
-		// XXX This message format may also be used for other downstream communucation
+		// XXX This message format may also be used for other downstream communication 
 		case PKT_PULL_RESP:	// 0x03 DOWN
 #if DUSB>=1
 			if (debug>=0) {
@@ -1280,7 +1280,7 @@ void setup() {
 	Serial.print(sf);
 	Serial.print(" on ");
 	Serial.print((double)freq/1000000);
-	Serial.println(" Mhz.");
+	Serial.println(" MHz.");
 
 	if (!WiFi.hostByName(NTP_TIMESERVER, ntpServer))		// Get IP address of Timeserver
 	{
@@ -1302,7 +1302,7 @@ void setup() {
 	delay(100);
 #endif
 
-	// The Over the AIr updates are supported when we have a WiFi connection.
+	// The Over the Air updates are supported when we have a WiFi connection.
 	// The NTP time setting does not have to be precise for this function to work.
 #if A_OTA==1
 	setupOta(hostname);										// Uses wwwServer 
@@ -1314,7 +1314,7 @@ void setup() {
 	setupTime();											// Set NTP time host and interval
 #else
 	// If not using the standard libraries, do a manual setting
-	// of the time. This meyhod works more reliable than the 
+	// of the time. This method works more reliable than the 
 	// interrupt driven method.
 	
 	//setTime((time_t)getNtpTime());
@@ -1341,7 +1341,7 @@ void setup() {
 
 	delay(100);												// Wait after setup
 	
-	// Setup ad initialise LoRa state machine of _loramModem.ino
+	// Setup and initialise LoRa state machine of _loramModem.ino
 	_state = S_INIT;
 	initLoraModem();
 	
@@ -1391,7 +1391,7 @@ void setup() {
 // we include yield() statements at important points.
 //
 // Note: If we spend too much time in user processing functions
-//	and the backend system cannot do its housekeeping, the watchdog
+// and the backend system cannot do its housekeeping, the watchdog
 // function will be executed which means effectively that the 
 // program crashes.
 // We use yield() a lot to avoid ANY watch dog activity of the program.
@@ -1460,7 +1460,7 @@ void loop ()
 	ArduinoOTA.handle();
 #endif
 
-	// I event is set, we know that we have a (soft) interrupt.
+	// If event is set, we know that we have a (soft) interrupt.
 	// After all necessary web/OTA services are scanned, we will
 	// reloop here for timing purposes. Do a less yield() as possible.
 	// XXX 180326
@@ -1525,7 +1525,7 @@ void loop ()
 
 		// If the gateway behaves like a node, we do from time to time
 		// send a node message to the backend server.
-		// The Gateway nod emessage has nothing to do with the STAT_INTERVAL
+		// The Gateway node message has nothing to do with the STAT_INTERVAL
 		// message but we schedule it in the same frequency.
 		//
 #if GATEWAYNODE==1

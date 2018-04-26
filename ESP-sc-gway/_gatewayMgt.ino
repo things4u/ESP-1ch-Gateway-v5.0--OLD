@@ -35,10 +35,10 @@
 
 
 // ----------------------------------------------------------------------------
-// Ths function gateway_mgt is called in the UDP Receive function after
+// This function gateway_mgt is called in the UDP Receive function after
 // all well-known LoRa Gateway messages are scanned.
 //
-// As part of this function we will listen for another set of messages
+// As part of this function, we will listen for another set of messages
 // that is defined in loraModem.h.
 // All opCodes start with 0x1y for at leaving opcodes 0x00 to 0x0F to the
 // pure Gateway protocol

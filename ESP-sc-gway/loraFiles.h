@@ -20,12 +20,12 @@
 // ----------------------------------------------------------------------------------------
 
 // At this moment there is only one record written to the ESP8266
-// filesystem. We can add more info, whcich makes the gateway even more usable,
+// filesystem. We can add more info, which makes the gateway even more usable,
 // however for large data we should only append to the existing file used.
 // This also means we'll have to check for available space so we won't run out of 
 // storage space to quickly.
 // One way would be to use let's say 10 files of each 10000 lines and when full
-// delete the first file and start sriting on a new one (for example)
+// delete the first file and start writing on a new one (for example)
 
 
 

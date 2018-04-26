@@ -15,21 +15,21 @@
 // This file contains the webserver code for the ESP Single Channel Gateway.
 
 // Note:
-// The ESP Webserver works with Strings to display html content. 
+// The ESP Webserver works with Strings to display HTML content. 
 // Care must be taken that not all data is output to the webserver in one string
 // as this will use a LOT of memory and possibly kill the heap (cause system
-// crash or other unreliable behaviour.
+// crash or other unreliable behaviour.)
 // Instead, output of the various tables on the webpage should be displayed in
-// chucks so that strings are limited in size.
+// chunks so that strings are limited in size.
 // Be aware that using no strings but only sendContent() calls has its own
 // disadvantage that these calls take a lot of time and cause the page to be
 // displayed like an old typewriter.
-// So, the trick is to make chucks that are sent to the website by using
+// So, the trick is to make chunks that are sent to the website by using
 // a response String but not make those Strings too big.
 //
 // Also, selecting too many options for Statistics, display, Hopping channels
-// etc makes the gateway more sluggish and may impact the availabile memory and 
-// thus its performance and reliability. It's up to the uer to select wisely!
+// etc makes the gateway more sluggish and may impact the available memory and 
+// thus its performance and reliability. It's up to the user to select wisely!
 //
 
 
@@ -72,7 +72,7 @@ void buttonStat()
 }
 
 // ----------------------------------------------------------------------------
-// Button gunction log displays  logfiles and lets the user select one.
+// Button function log displays  logfiles and lets the user select one.
 // ----------------------------------------------------------------------------
 void buttonLog() 
 {
@@ -102,7 +102,7 @@ static void wwwButtons()
 // ----------------------------------------------------------------------------
 // SET ESP8266 WEB SERVER VARIABLES
 //
-// This funtion implements the WiFI Webserver (very simple one). The purpose
+// This funtion implements the WiFi Webserver (very simple one). The purpose
 // of this server is to receive simple admin commands, and execute these
 // results are sent back to the web client.
 // Commands: DEBUG, ADDRESS, IP, CONFIG, GETTIME, SETTIME
@@ -150,7 +150,7 @@ static void setVariables(const char *cmd, const char *arg) {
 		else if (atoi(arg) == -1) {
 			if (sf<=SF7) sf=SF12; else sf= (sf_t)((int)sf-1);
 		}
-		rxLoraModem();												// Reset the radion with the new spreading factor
+		rxLoraModem();												// Reset the radio with the new spreading factor
 		writeGwayCfg(CONFIGFILE);									// Save configuration to file
 	}
 	
@@ -168,7 +168,7 @@ static void setVariables(const char *cmd, const char *arg) {
 		}
 
 		freq = freqs[ifreq];
-		rxLoraModem();												// Reset the radion with the new frequency
+		rxLoraModem();												// Reset the radio with the new frequency
 		writeGwayCfg(CONFIGFILE);									// Save configuration to file
 	}
 
@@ -186,7 +186,7 @@ static void setVariables(const char *cmd, const char *arg) {
 	
 	if (strcmp(cmd, "FCNT")==0)   { 
 		frameCount=0; 
-		rxLoraModem();												// Reset the radion with the new frequency
+		rxLoraModem();												// Reset the radio with the new frequency
 		writeGwayCfg(CONFIGFILE);
 	}
 #endif

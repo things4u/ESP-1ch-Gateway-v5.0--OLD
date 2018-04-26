@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This document describes the testing of the single channel gateway. These parameters are set in gthe loraModem.h file and determine its behaviour for switching from S_SCAN state to S_CAD state and the fallback from S_CAD state to scanning if the rssi drop dramatically.
+This document describes the testing of the single channel gateway. These parameters are set in the loraModem.h file and determine its behaviour for switching from S_SCAN state to S_CAD state and the fallback from S_CAD state to scanning if the rssi drop dramatically.
 
 ## Optimize for STD
 

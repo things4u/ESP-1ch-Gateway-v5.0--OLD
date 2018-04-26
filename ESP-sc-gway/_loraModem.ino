@@ -20,22 +20,22 @@
 //
 //
 // SPI AND INTERRUPTS
-// The RFM96/SX1276 communicaties with the ESP8266 by means of interrupts 
+// The RFM96/SX1276 communicates with the ESP8266 by means of interrupts 
 // and SPI interface. The SPI interface is bidirectional and allows both
 // parties to simultaneous write and read to registers.
 // Major drawback is that access is not protected for interrupt and non-
 // interrupt access. This means that when a program in loop() and a program
 // in interrupt do access the readregister and writeRegister() function
-// at teh same time that probably an error will occur.
-// Therefore it is best to Either not use interrupts AT all (like LMIC)
-// or only use these functions in inteerupts and to further processing
+// at the same time that probably an error will occur.
+// Therefore it is best to either not use interrupts AT all (like LMIC)
+// or only use these functions in interrupts and to further processing
 // in the main loop() program.
 //
 // ============================================================================
 
 
 // ----------------------------------------------------------------------------
-// Mutex definitiona
+// Mutex definitions
 //
 // ----------------------------------------------------------------------------
 #if MUTEX==1
@@ -232,7 +232,7 @@ void setRate(uint8_t sf, uint8_t crc)
 // ----------------------------------------------------------------------------
 // Set the frequency for our gateway
 // The function has no parameter other than the freq setting used in init.
-// Since we are usin a 1ch gateway this value is set fixed.
+// Since we are using a 1ch gateway this value is set fixed.
 // ----------------------------------------------------------------------------
 
 void  setFreq(uint32_t freq)
@@ -601,7 +601,7 @@ void txLoraModem(uint8_t *payLoad, uint8_t payLength, uint32_t tmst, uint8_t sfT
 	// 3. Init spreading factor and other Modem setting
 	setRate(sfTx, crc);
 	
-	// Frquency hopping
+	// Frequency hopping
 	//writeRegister(REG_HOP_PERIOD, (uint8_t) 0x00);		// set 0x24 to 0x00 only for receivers
 	
 	// 4. Init Frequency, config channel
@@ -613,7 +613,7 @@ void txLoraModem(uint8_t *payLoad, uint8_t payLength, uint32_t tmst, uint8_t sfT
 	// 7. prevent node to node communication
 	writeRegister(REG_INVERTIQ, (uint8_t) iiq);						// 0x33, (0x27 or 0x40)
 	
-	// 8. set the IRQ mapping DIO0=TxDone DIO1=NOP DIO2=NOP (or lesss for 1ch gateway)
+	// 8. set the IRQ mapping DIO0=TxDone DIO1=NOP DIO2=NOP (or less for 1ch gateway)
     writeRegister(REG_DIO_MAPPING_1, (uint8_t)(
 		MAP_DIO0_LORA_TXDONE | 
 		MAP_DIO1_LORA_NOP | 
@@ -659,7 +659,7 @@ void txLoraModem(uint8_t *payLoad, uint8_t payLength, uint32_t tmst, uint8_t sfT
 // - Determine the correct transceiver type (sx1272/RFM92 or sx1276/RFM95)
 // - Set the frequency to listen to (1-channel remember)
 // - Set Spreading Factor (standard SF7)
-// The reset RST pin might not be necessary for at least the RGM95 transceiver
+// The reset RST pin might not be necessary for at least the RFM95 transceiver
 //
 // 1. Put the radio in LoRa mode
 // 2. Put modem in sleep or in standby
@@ -735,7 +735,7 @@ void rxLoraModem()
 		opmode(OPMODE_RX_SINGLE);								// 0x80 | 0x06 (listen one message)
 	}
 	else {
-		// Set Continous Receive Mode, usefull if we stay on one SF
+		// Set Continous Receive Mode, useful if we stay on one SF
 		_state= S_RX;
 		opmode(OPMODE_RX);										// 0x80 | 0x05 (listen)
 	}
@@ -759,7 +759,7 @@ void rxLoraModem()
 // ----------------------------------------------------------------------------
 void cadScanner()
 {
-	// 1. Put system in LoRa mode (which destroys all other nodes(
+	// 1. Put system in LoRa mode (which destroys all other nodes
 	//opmode(OPMODE_LORA);
 	
 	// 2. Put the radio in sleep mode
