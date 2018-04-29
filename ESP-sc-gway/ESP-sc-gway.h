@@ -38,6 +38,11 @@
 // operation.
 #define SPIFF_FORMAT 0
 
+// Define the frequency band the gateway will listen on. Valid options are
+// EU863_870 (Europe), US902_928 (North America) & AU925_928 (Australia).
+// See https://www.thethingsnetwork.org/docs/lorawan/frequency-plans.html
+#define EU863_870
+
 // The spreading factor is the most important parameter to set for a single channel
 // gateway. It specifies the speed/datarate in which the gateway and node communicate.
 // As the name says, in principle the single channel gateway listens to one channel/frequency
