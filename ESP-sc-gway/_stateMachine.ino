@@ -60,9 +60,9 @@
 //	- Goto either SCAN or RX
 //
 // This interrupt routine has been kept as simple and short as possible.
-// If we receive an interrupt that does not below to a _state then print error.
+// If we receive an interrupt that does not belong to a _state then print error.
 // _event is a special variable which indicate that an interrupt event has happened
-//	and we need to take action OR that we generate a soft interrupt for state machine.
+// and we need to take action OR that we generate a soft interrupt for state machine.
 // 
 // NOTE: We may clear the interrupt but leave the flag for the moment. 
 //	The eventHandler should take care of repairing flags between interrupts.
@@ -211,7 +211,7 @@ void stateMachine()
 			rssi = readRegister(REG_RSSI);				// Read the RSSI
 			_rssi = rssi;								// Read the RSSI in the state variable
 
-			_event = 0;									// Make 0, as soon aswe have an interrupt
+			_event = 0;									// Make 0, as soon as we have an interrupt
 			writeRegister(REG_IRQ_FLAGS, (uint8_t) 0xFF );		// reset all interrupt flags
 
 #if DUSB>=1
@@ -680,7 +680,7 @@ void stateMachine()
 
 	  
 	  // --------------------------------------------------------------  
-	  // Start te transmission of a message in state S-TX
+	  // Start the transmission of a message in state S-TX
 	  // We use S-TXDONE as the state to read the message.
 	  // This is not an interrupt state, we use this state to start transmission
 	  // the interrupt TX-DONE tells us that the transmission was successful.
@@ -698,7 +698,7 @@ void stateMachine()
 #endif
 		}
 		
-		// Sset state to transmit
+		// Set state to transmit
 		_state = S_TXDONE;
 		writeRegister(REG_IRQ_FLAGS_MASK, (uint8_t) 0x00);
 		writeRegister(REG_IRQ_FLAGS, (uint8_t) 0xFF);					// reset interrupt flags
@@ -728,7 +728,7 @@ void stateMachine()
 
 	  
 	  // ---------------------------------------------------
-	  // AFter the transmission is completed by the hardware, 
+	  // After the transmission is completed by the hardware, 
 	  // the interrupt TXDONE is raised telling us that the tranmission
 	  // was successful.
 	  // If we receive an interrupt on dio0 _state==S_TX it is a TxDone interrupt

@@ -186,7 +186,7 @@ int writeGwayCfg(const char *fn) {
 }
 
 // ----------------------------------------------------------------------------
-// Write the configuration ad found in the espGwayConfig structure
+// Write the configuration as found in the espGwayConfig structure
 // to SPIFFS
 // ----------------------------------------------------------------------------
 int writeConfig(const char *fn, struct espGwayConfig *c) {
@@ -245,8 +245,8 @@ void addLog(const unsigned char * line, int cnt)
 	char fn[16];
 	
 	if (gwayConfig.logFileRec > LOGFILEREC) {		// Have to make define for this
-		gwayConfig.logFileRec = 0;					// INn new logFile start ith record 0
-		gwayConfig.logFileNo++;					// Increase file ID
+		gwayConfig.logFileRec = 0;					// In new logFile start with record 0
+		gwayConfig.logFileNo++;						// Increase file ID
 		gwayConfig.logFileNum++;					// Increase number of log files
 	}
 	gwayConfig.logFileRec++;

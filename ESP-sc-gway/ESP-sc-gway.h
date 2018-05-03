@@ -24,12 +24,12 @@
 // This value of DEBUG determines whether some parts of code get compiled.
 // Also this is the initial value of debug parameter. 
 // The value can be changed using the admin webserver
-// For operational use, set initial DEBUG vaulue 0
+// For operational use, set initial DEBUG value 0
 #define DEBUG 0
 
-// Debug message will be put on Serial is this one is set.
-// If set to 0, not USB Serial prints are done
-// Set to 1 it will prin all user level messages (with correct debug set)
+// Debug messages will be put on Serial if this one is set.
+// If set to 0, no USB Serial prints are done
+// Set to 1 it will print all user level messages (with correct debug set)
 // If set to 2 it will also print interrupt messages (not recommended)
 #define DUSB 1
 
@@ -37,6 +37,11 @@
 // This is usually a good idea if the webserver is interrupted halfway a writing
 // operation.
 #define SPIFF_FORMAT 0
+
+// Define the frequency band the gateway will listen on. Valid options are
+// EU863_870 (Europe), US902_928 (North America) & AU925_928 (Australia).
+// See https://www.thethingsnetwork.org/docs/lorawan/frequency-plans.html
+#define EU863_870
 
 // The spreading factor is the most important parameter to set for a single channel
 // gateway. It specifies the speed/datarate in which the gateway and node communicate.
@@ -52,7 +57,7 @@
 // factor accordingly. If set to 1 we will use this function which means the 
 // 1-channel gateway will become even more versatile. If set to 0 we will use the
 // continuous listen mode.
-// Using this function means that we HAVE to use more dio pins on the RFM95/sx1276
+// Using this function means that we HAVE to use more dio pins on the RFM95/SX1276
 // device and also connect enable dio1 to detect this state. 
 #define _CAD 1
 
@@ -65,7 +70,7 @@
 #define A_MAXBUFSIZE 192		// Must be larger than 128, but small enough to work
 
 // Definitions for over the air updates. At the moment we support OTA with IDE
-// Make sure that tou have installed Python version 2.7 and have Bonjour in your network.
+// Make sure that you have installed Python version 2.7 and have Bonjour in your network.
 // Bonjour is included in iTunes (which is free) and OTA is recommended to install 
 // the firmware on your router witout having to be really close to the gateway and 
 // connect with USB.
@@ -119,7 +124,7 @@
 #define _CHECK_MIC 0
 
 // This section defines whether we use the gateway as a repeater
-// For his, we use another output channle as the channel (default==0) we are 
+// For his, we use another output channel as the channel (default==0) we are 
 // receiving the messages on.
 #define REPEATER 0
 
@@ -128,7 +133,7 @@
 #define MUTEX 0
 
 // Define if OLED Display is connected to I2C bus. Note that defining an OLED display does not
-// impact perfoamce very much, certainly if no OLED is connected. Wrong OLED will not show
+// impact performance very much, certainly if no OLED is connected. Wrong OLED will not show
 // sensible results on display
 // OLED==0; No OLED display connected
 // OLED==1; 0.9 Oled Screen based on SSD1306
@@ -147,7 +152,7 @@
 //	functions to set/reset certain parameters from remote.
 #define GATEWAYMGT 0
 
-// Do extensive loggin
+// Do extensive logging
 // Use the ESP8266 SPIFS filesystem to do extensive logging.
 // We must take care that the filesystem never(!) is full, and for that purpose we
 // rather have new records/line of statistics than very old.
@@ -155,7 +160,7 @@
 //
 #define STAT_LOG 1
 
-// Name of he configfile in SPIFFs	filesystem
+// Name of the configfile in SPIFFs	filesystem
 // In this file we store the configuration and other relevant info that should
 // survive a reboot of the gateway		
 #define CONFIGFILE "/gwayConfig.txt"

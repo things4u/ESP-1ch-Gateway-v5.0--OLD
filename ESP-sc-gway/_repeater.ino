@@ -24,14 +24,14 @@
 #define _OCHAN 1
 
 #ifdef _TTNSERVER
-#error "Please undefined _THINGSERVER, for REAPETR shutdown WiFi"
+#error "Please undefined _THINGSERVER, for REPEATER shutdown WiFi"
 #endif
 
 // Send a LoRa message out from the gateway transmitter
 // XXX Maybe we should block the received ontul the message is transmitter
 
 int sendLora(char *msg, int len) {
-	// Check whete len is not exceeding maximum length
+	// Check when len is not exceeding maximum length
 	Serial.print("sendLora:: ");
 	
 	for (int i=0; i< len; i++) {

@@ -59,23 +59,48 @@ long txDelay= 0x00;								// tx delay time on top of server TMST
 // Set center frequency. If in doubt, choose the first one, comment all others
 // Each "real" gateway should support the first 3 frequencies according to LoRa spec.
 
-int freqs [] = { 
-	868100000, 									// Channel 0, 868.1 MHz primary
-	868300000, 									// Channel 1, 868.3 MHz mandatory
-	868500000, 									// Channel 2, 868.5 MHz mandatory
-	867100000, 									// Channel 3, 867.1 MHz Optional
-	867300000, 									// Channel 4, 867.3 MHz Optional
-	867500000,  								// Channel 5, 867.5 MHz Optional
-	867700000,  								// Channel 6, 867.7 MHz Optional 
-	867900000,  								// Channel 7, 867.9 MHz Optional 
-	868800000,   								// Channel 8, 868.9 MHz Optional
-	869525000									// Channel 9, 869.5 MHz for responses gateway (10%)
-	// TTN defines an additional channel at 869.525Mhz using SF9 for class B. Not used
-};
+#if defined(EU863_870)
+	int freqs [] = { 
+		868100000, 									// Channel 0, 868.1 MHz primary
+		868300000, 									// Channel 1, 868.3 MHz mandatory
+		868500000, 									// Channel 2, 868.5 MHz mandatory
+		867100000, 									// Channel 3, 867.1 MHz Optional
+		867300000, 									// Channel 4, 867.3 MHz Optional
+		867500000,  								// Channel 5, 867.5 MHz Optional
+		867700000,  								// Channel 6, 867.7 MHz Optional 
+		867900000,  								// Channel 7, 867.9 MHz Optional 
+		868800000,   								// Channel 8, 868.9 MHz Optional
+		869525000									// Channel 9, 869.5 MHz for responses gateway (10%)
+		// TTN defines an additional channel at 869.525Mhz using SF9 for class B. Not used
+	};
+#elif defined(US902_928)
+	int freqs[] = {
+		903900000,									// Channel 0, 903.9 MHz primary
+		904100000,									// Channel 1, 904.1 MHz mandatory
+		904300000,									// Channel 2, 904.3 MHz mandatory
+		904500000,									// Channel 3, 904.5 MHz Optional
+		904700000,									// Channel 4, 904.7 MHz Optional
+		904900000,									// Channel 5, 904.9 MHz Optional
+		905100000,									// Channel 6, 905.1 MHz Optional
+		905300000									// Channel 7, 905.3 MHz Optional
+	};
+#elif defined(AU925_928)
+	int freqs [] = { 
+		916800000, 									// Channel 0, 916.8 MHz primary
+		917000000, 									// Channel 1, 917.0 MHz mandatory
+		917200000, 									// Channel 2, 917.2 MHz mandatory
+		917400000, 									// Channel 3, 917.4 MHz Optional
+		917600000, 									// Channel 4, 917.6 MHz Optional
+		917800000,  								// Channel 5, 917.8 MHz Optional
+		918000000,  								// Channel 6, 918.0 MHz Optional 
+		918200000,  								// Channel 7, 918.2 MHz Optional 
+	};
+#else
+	#error "No frequency band specified"
+#endif
+	
 uint32_t  freq = freqs[0];
 uint8_t	 ifreq = 0;								// Channel Index
-
-
 
 // Set the structure for spreading factor
 enum sf_t { SF6=6, SF7, SF8, SF9, SF10, SF11, SF12 };
@@ -144,8 +169,8 @@ struct pins {
 #error "Pin Definitions _PIN_OUT must be 1(HALLARD) or 2 (COMRESULT)"
 #endif
 
-// STATR contains the statictis that are kept by message. 
-// Ech time a message is received or sent the statistics are updated.
+// stat_t contains the statistics that are kept by message. 
+// Each time a message is received or sent the statistics are updated.
 // In case STATISTICS==1 we define the last MAX_STAT messages as statistics
 struct stat_t {
 	unsigned long tmst;						// Time since 1970 in seconds		
@@ -160,11 +185,11 @@ struct stat_t {
 
 
 #if STATISTICS >= 1
-// STATC contains the statistic that are gateway related and not per
+// stat_c contains the statistics that are gateway related and not per
 // message. Example: Number of messages received on SF7 or number of (re) boots
-// So where statr contains the statistics gathered per packet the statc
-// contains general statics of the node
-#if STATISTICS >= 2							// Only if we explicitely set it higher
+// So where statr contains the statistics gathered per packet the stat_c
+// contains general statistics of the node
+#if STATISTICS >= 2							// Only if we explicitly set it higher
 struct stat_c {
 	unsigned long sf7;						// Spreading factor 7 statistics/Count
 	unsigned long sf8;						// Spreading factor 8
@@ -174,7 +199,7 @@ struct stat_c {
 	unsigned long sf12;						// Spreading factor 12
 
 	// If STATISTICS is 3, we add statistics about the channel 
-	// When only one changgel is used, we normally know the spread of
+	// When only one channel is used, we normally know the spread of
 	// statistics, but when HOP mode is selected we migth want to add this info
 #if STATISTICS >=3
 	unsigned long sf7_0, sf7_1, sf7_2;
@@ -231,7 +256,7 @@ struct LoraUp {
 // ============================================================================
 // Set all definitions for Gateway
 // ============================================================================	
-// Register definitions. These are the addresses of the TFM95, SX1276 that we 
+// Register definitions. These are the addresses of the RFM95, SX1276 that we 
 // need to set in the program.
 
 #define REG_FIFO                    0x00		// rw FIFO address

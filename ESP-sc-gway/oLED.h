@@ -17,11 +17,11 @@
 //
 // ----------------------------------------------------------------------------------------
 
-// OLEDs dupported by this program must be I2C.
-// This is because we do not want any diisturbance in the SPI area
+// OLEDs supported by this program must be I2C.
+// This is because we do not want any disturbance in the SPI area
 // which is also interfacing the LORA tranceiver.
 //
-// The following OLDs are supported:
+// The following OLEDs are supported:
 // 0. No OLED connected
 // 1. 0.9" OLED (cheap)
 // 2. 1.3" OLED with much better display
