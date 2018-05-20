@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
-// Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.9 H
-// Date: 2018-04-16
+// Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
+// Version 5.1.0 H
+// Date: 2018-05-03
 //
 // Based on work done by Thomas Telkamp for Raspberry PI 1ch gateway and many others.
 // Contibutions of Dorijan Morelj and Andreas Spies for OLED support.
@@ -19,7 +19,7 @@
 //
 // ----------------------------------------------------------------------------------------
 
-#define VERSION "V.5.0.9.H; 180416a"
+#define VERSION "V.5.1.0.H; 180503a"
 
 // This value of DEBUG determines whether some parts of code get compiled.
 // Also this is the initial value of debug parameter. 
@@ -211,6 +211,37 @@
 
 // Serial Port speed
 #define _BAUDRATE 115200					// Works for debug messages to serial momitor
+
+// We can put the gateway in such a mode that it will (only) recognize
+// nodes that are put in a list of trusted nodes 
+// Values:
+// 0: Do not use names for trusted Nodes
+// 1: Use the nodes as a translation tabel for hex codes to names (in TLN)
+// 2: Same as 1, but is nodes NOT in the nodes list below they are NOT
+//		forwarded or counted! (not yet fully implemented)
+#define TRUSTED_NODES 1
+#if TRUSTED_NODES >= 1
+struct nodex  {
+	uint32_t id;
+	char nm[32];
+};
+
+// Add all your named and trusted nodes to this list
+nodex nodes[] = {
+	{ 0x260116BD , "lora-34 PIR node" },			// F=0
+	{ 0x26011152 , "lora-35 temp+humi node" },		// F=0
+	{ 0x2601148C , "lora-36 test node" },			// F=0
+	{ 0x26011B90 , "lora-39 temp DS18B20" },		// F=1
+	{ 0x260119A6 , "lora-40 airquality" },			// F=0
+	{ 0x2601117D , "lora-41 temp+humi SR04T" },
+	{ 0x26011514 , "lora-43 ch1, no sensors" },		// F=1
+	{ 0x26011D77 , "lora-45 not sensor" },
+	{ 0x2601160F , "lora-46 HTU21 metal case" },	// F=0
+	{ 0x26011E52 , "lora-53 gas sensor" },			// F=ALL
+	{ 0x02020441 , "lora-65 Waterproof temp humi" },// F=0
+	{ 0x26011999 , "lora-901 distance sensor" }		// F=0
+};
+#endif
 
 // Wifi definitions
 // WPA is an array with SSID and password records. Set WPA size to number of entries in array

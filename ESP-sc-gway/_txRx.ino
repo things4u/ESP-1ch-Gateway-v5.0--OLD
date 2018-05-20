@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
-// Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.9
-// Date: 2018-03-09
+// Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
+// Version 5.1.0
+// Date: 2018-04-17
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -81,7 +81,8 @@ int sendPacket(uint8_t *buf, uint8_t length)
 #endif
 		return(-1);
 	}
-	delay(1);
+	yield();
+	
 	// Meta Data sent by server (example)
 	// {"txpk":{"codr":"4/5","data":"YCkEAgIABQABGmIwYX/kSn4Y","freq":868.1,"ipol":true,"modu":"LORA","powe":14,"rfch":0,"size":18,"tmst":1890991792,"datr":"SF7BW125"}}
 
@@ -319,7 +320,7 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 #endif // STATISTICS >= 2
 
 #if DUSB>=1	
-	if (debug>=1) {
+	if (( debug>=2 ) && ( pdebug & P_RADIO )){
 		Serial.print(F("buildPacket:: pRSSI="));
 		Serial.print(prssi-rssicorr);
 		Serial.print(F(" RSSI: "));
@@ -506,7 +507,7 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 #if DUSB>=1
 	if (debug>=2) {
 		Serial.print(F("RXPK:: "));
-		Serial.println((char *)(buff_up + 12));			// DEBUG: display JSON payload
+		Serial.println((char *)(buff_up + 12));			// debug: display JSON payload
 	}
 	if (debug>= 2) {
 		Serial.print(F("RXPK:: package length="));

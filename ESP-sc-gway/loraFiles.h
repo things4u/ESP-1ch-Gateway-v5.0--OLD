@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
-// Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.9
-// Date: 2018-04-07
+// Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
+// Version 5.1.0
+// Date: 2018-04-17
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -29,6 +29,18 @@
 
 
 
+//
+// Define Pattern debug settings, this allows debugging per
+// module rather than per level. See also pdebug.
+//
+#define P_SCAN		0x01
+#define P_CAD		0x02
+#define P_RX		0x04
+#define P_TX		0x08
+#define P_PRE		0x10
+#define P_MAIN		0x20
+#define P_GUI		0x40
+#define P_RADIO		0x80
 
 // Definition of the configuration record that is read at startup and written
 // when settings are changed.
@@ -47,18 +59,19 @@ struct espGwayConfig {
 	uint8_t ch;					// index to freqs array, freqs[ifreq]=868100000 default
 	uint8_t sf;					// range from SF7 to SF12
 	uint8_t debug;				// range 0 to 4
+	uint8_t pdebug;				// pattern debug, 
 
 	uint16_t logFileRec;		// Logging File Record number
 	uint16_t logFileNo;			// Logging File Number
 	uint16_t logFileNum;		// Number of log files
 	
 	bool cad;					// is CAD enabled?
-	bool hop;					// Is HOP enabled (Note: Should be disabled)
+	bool hop;					// Is HOP enabled (Note: default be disabled)
 	bool isNode;				// Is gateway node enabled
 	bool refresh;				// Is WWW browser refresh enabled
 	
 	String ssid;				// SSID of the last connected WiFi Network
-	String pass;				// Password
+	String pass;				// Password of WiFi network
 } gwayConfig;
 
 // Define a log record to be written to the log file

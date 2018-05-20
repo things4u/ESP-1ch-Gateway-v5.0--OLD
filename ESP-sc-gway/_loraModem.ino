@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
-// Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.9
-// Date: 2018-04-07
+// Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
+// Version 5.1.0
+// Date: 2018-04-17
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -90,7 +90,7 @@
 // The variable is for obvious reasons valid for read and write traffic at the
 // same time. Since both read and write mean that we write to the SPI interface.
 // Parameters:
-//	Address: SPI address to read from. Type unint8_t
+//	Address: SPI address to read from. Type uint8_t
 // Return:
 //	Value read from address
 // ----------------------------------------------------------------------------
@@ -307,6 +307,7 @@ void  opmode(uint8_t mode)
 void hop() {
 	
 		ifreq = (ifreq + 1) % NUM_HOPS ;					// Increment the freq round robin
+		freq = freqs[ifreq];
 		setFreq(freqs[ifreq]);
 
 		sf = SF7;											// Set the sf to SF7
@@ -357,15 +358,14 @@ uint8_t receivePkt(uint8_t *payload)
     if (irqflags & IRQ_LORA_CRCERR_MASK)
     {
 #if DUSB>=1
-        if (debug>=0) {
-			Serial.print(F("Err RxPkg:: CRC, ="));
+        if (( debug>=0) && ( pdebug & P_RADIO )) {
+			Serial.print(F("Err RxPkt:: CRC, ="));
 			SerialTime();
 			Serial.println();
 		}
 #endif
 		// Reset CRC flag 0x20
         //writeRegister(REG_IRQ_FLAGS, (uint8_t)(IRQ_LORA_CRCERR_MASK | IRQ_LORA_RXDONE_MASK));	// 0x12; clear CRC (== 0x20) flag
-		//_event=0;
 		//writeRegister(REG_IRQ_FLAGS_MASK, (uint8_t) 0x00);
 		//writeRegister(REG_IRQ_FLAGS, (uint8_t) 0xFF);								// XXX 180324 done in state machine
 		return 0;
@@ -377,8 +377,8 @@ uint8_t receivePkt(uint8_t *payload)
 	else if ((irqflags & IRQ_LORA_HEADER_MASK) == false)
     {
 #if DUSB>=1
-        if (debug>=0) {
-			Serial.println(F("Err RxPkg:: HEADER"));
+        if (( debug>=0) && ( pdebug & P_RADIO )) {
+			Serial.println(F("Err RxPkt:: HEADER"));
 		}
 #endif
 		// Reset VALID-HEADER flag 0x10
@@ -415,7 +415,7 @@ uint8_t receivePkt(uint8_t *payload)
 
 		if (receivedCount > PAYLOAD_LENGTH) {
 #if DUSB>=1
-			if (debug>=0) {
+			if (( debug>=0 ) & ( pdebug & P_RADIO )) {
 				Serial.print(F("rxPkt:: receivedCount="));
 				Serial.println(receivedCount);
 			}
@@ -430,7 +430,7 @@ uint8_t receivePkt(uint8_t *payload)
 
 		writeRegister(REG_IRQ_FLAGS, (uint8_t) 0xFF);		// Reset ALL interrupts
 #if DUSB>=1
-		if (debug>=0) {
+		if (( debug>=0 ) && ( pdebug & P_RADIO )){
 		
 			Serial.print(F("rxPkt:: t="));
 			SerialTime();
@@ -675,11 +675,15 @@ void txLoraModem(uint8_t *payLoad, uint8_t payLength, uint32_t tmst, uint8_t sfT
 void rxLoraModem()
 {
 	// 1. Put system in LoRa mode
-	//opmode(OPMODE_LORA);
+	//opmode(OPMODE_LORA);										// Is already so
 	
 	// 2. Put the radio in sleep mode
-	opmode(OPMODE_STANDBY);
-    //opmode(OPMODE_SLEEP);										// set 0x01 to 0x00
+	//if (_hop) {
+	//	opmode(OPMODE_SLEEP);				// power save, and enable switch FSK/OOK ro LORA
+	//}
+	//else {
+		opmode(OPMODE_STANDBY);									// CAD set 0x01 to 0x00
+	//}
 	
 	// 3. Set frequency based on value in freq
 	setFreq(freqs[ifreq]);										// set to 868.1MHz
@@ -765,14 +769,11 @@ void cadScanner()
 	// 2. Put the radio in sleep mode
 	opmode(OPMODE_STANDBY);										// Was old value
 	
-	// As we can come back from S_TX with other frequencies and SF
-	// reset both to good values for cadScanner
-	
 	// 3. Set frequency based on value in ifreq					// XXX New, might be needed when receiving down
 	setFreq(freqs[ifreq]);
 
-	// For every time we stat the scanner, we set the SF to the begin value
-	sf = SF7;													// we make SF the lower, this is faster!
+	// For every time we start the scanner, we set the SF to the begin value
+	//sf = SF7;													// XXX 180501 Not by default
 	
 	// 4. Set spreading Factor and CRC
 	setRate(sf, 0x04);

@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
-// Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.9
-// Date: 2018-04-07
+// Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
+// Version 5.1.0
+// Date: 2018-04-17
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -21,6 +21,18 @@
 //
 // The LoRa supporting functions are in the section below
 
+// ----------------------------------------------------------------------------
+// Supporting function to readConfig
+// ----------------------------------------------------------------------------
+void id_print (String id, String val) {
+#if DUSB>=1
+	if (( debug>=0 ) && ( pdebug & P_MAIN )) {
+		Serial.print(id);
+		Serial.print(F("=\t"));
+		Serial.println(val);
+	}
+#endif
+}
 
 
 // ----------------------------------------------------------------------------
@@ -29,12 +41,16 @@
 int readConfig(const char *fn, struct espGwayConfig *c) {
 
 	int tries = 0;
+#if DUSB>=1
 	Serial.print(F("readConfig:: Starting "));
-
+#endif
 	if (!SPIFFS.exists(fn)) {
+#if DUSB>=1
+		if (( debug >= 0 ) && ( pdebug & P_MAIN ))
 		Serial.print(F("ERROR:: readConfig, file="));
 		Serial.print(fn);
 		Serial.print(F(" does not exist .. Formatting"));
+#endif
 		SPIFFS.format();
 		return(-1);
 	}
@@ -48,7 +64,7 @@ int readConfig(const char *fn, struct espGwayConfig *c) {
 	while (f.available()) {
 		
 #if DUSB>=1
-		if (debug>=0) {
+		if (( debug>=0 ) && ( pdebug & P_MAIN )) {
 			Serial.print('.');
 		}
 #endif
@@ -57,7 +73,10 @@ int readConfig(const char *fn, struct espGwayConfig *c) {
 		//
 		if (tries >= 10) {
 			f.close();
-			Serial.println(F("Formatting"));
+#if DUSB>=1
+			if (( debug >= 0 ) && ( pdebug & P_MAIN ))
+				Serial.println(F("Formatting"));
+#endif
 			SPIFFS.format();
 			f = SPIFFS.open(fn, "r");
 			tries = 0;
@@ -67,28 +86,32 @@ int readConfig(const char *fn, struct espGwayConfig *c) {
 		String val=f.readStringUntil('\n');
 		
 		if (id == "SSID") {										// WiFi SSID
-			Serial.print(F("SSID=")); Serial.println(val);
+			id_print(id, val);
 			(*c).ssid = val;									// val contains ssid, we do NO check
 		}
 		//else if (id == "PASS") { 								// WiFi Password
-		//	Serial.print(F("PASS=")); Serial.println(val); 
+		//	id_print(id, val); 
 		//	(*c).pass = val;
 		//}
 		else if (id == "CH") { 									// Frequency Channel
-			Serial.print(F("CH=")); Serial.println(val); 
+			id_print(id,val); 
 			(*c).ch = (uint32_t) val.toInt();
 		}
 		else if (id == "SF") { 									// Spreading Factor
-			Serial.print(F("SF  =")); Serial.println(val);
+			id_print(id, val);
 			(*c).sf = (uint32_t) val.toInt();
 		}
 		else if (id == "FCNT") {								// Frame Counter
-			Serial.print(F("FCNT=")); Serial.println(val);
+			id_print(id, val);
 			(*c).fcnt = (uint32_t) val.toInt();
 		}
-		else if (id == "DEBUG") {								// Frame Counter
-			Serial.print(F("DEBUG=")); Serial.println(val);
+		else if (id == "DEBUG") {								// Debug Level
+			id_print(id, val);
 			(*c).debug = (uint8_t) val.toInt();
+		}
+		else if (id == "PDEBUG") {								// pDebug Pattern
+			Serial.print(F("PDEBUG=")); Serial.println(val);
+			(*c).pdebug = (uint8_t) val.toInt();
 		}
 		else if (id == "CAD") {									// CAD setting
 			Serial.print(F("CAD=")); Serial.println(val);
@@ -99,55 +122,55 @@ int readConfig(const char *fn, struct espGwayConfig *c) {
 			(*c).hop = (uint8_t) val.toInt();
 		}
 		else if (id == "BOOTS") {								// BOOTS setting
-			Serial.print(F("BOOTS=")); Serial.println(val);
+			id_print(id, val);
 			(*c).boots = (uint8_t) val.toInt();
 		}
 		else if (id == "RESETS") {								// RESET setting
-			Serial.print(F("RESETS=")); Serial.println(val);
+			id_print(id, val);
 			(*c).resets = (uint8_t) val.toInt();
 		}
 		else if (id == "WIFIS") {								// WIFIS setting
-			Serial.print(F("WIFIS=")); Serial.println(val);
+			id_print(id, val);
 			(*c).wifis = (uint8_t) val.toInt();
 		}
 		else if (id == "VIEWS") {								// VIEWS setting
-			Serial.print(F("VIEWS=")); Serial.println(val);
+			id_print(id, val);
 			(*c).views = (uint8_t) val.toInt();
 		}
 		else if (id == "NODE") {								// NODE setting
-			Serial.print(F("NODE=")); Serial.println(val);
+			id_print(id, val);
 			(*c).isNode = (uint8_t) val.toInt();
 		}
 		else if (id == "REFR") {								// REFR setting
-			Serial.print(F("REFR=")); Serial.println(val);
+			id_print(id, val);
 			(*c).refresh = (uint8_t) val.toInt();
 		}
 		else if (id == "REENTS") {								// REENTS setting
-			Serial.print(F("REENTS=")); Serial.println(val);
+			id_print(id, val);
 			(*c).reents = (uint8_t) val.toInt();
 		}
 		else if (id == "NTPERR") {								// NTPERR setting
-			Serial.print(F("NTPERR=")); Serial.println(val);
+			id_print(id, val);
 			(*c).ntpErr = (uint8_t) val.toInt();
 		}
 		else if (id == "NTPETIM") {								// NTPERR setting
-			Serial.print(F("NTPETIM=")); Serial.println(val);
+			id_print(id, val);
 			(*c).ntpErrTime = (uint32_t) val.toInt();
 		}
 		else if (id == "NTPS") {								// NTPS setting
-			Serial.print(F("NTPS=")); Serial.println(val);
+			id_print(id, val);
 			(*c).ntps = (uint8_t) val.toInt();
 		}
 		else if (id == "FILENO") {								// log FILENO setting
-			Serial.print(F("FILENO=")); Serial.println(val);
+			id_print(id, val);
 			(*c).logFileNo = (uint8_t) val.toInt();
 		}
 		else if (id == "FILEREC") {								// FILEREC setting
-			Serial.print(F("FILEREC=")); Serial.println(val);
+			id_print(id, val);
 			(*c).logFileRec = (uint8_t) val.toInt();
 		}
 		else if (id == "FILENUM") {								// FILEREC setting
-			Serial.print(F("FILENUM=")); Serial.println(val);
+			id_print(id, val);
 			(*c).logFileNum = (uint8_t) val.toInt();
 		}
 		else {
@@ -171,17 +194,17 @@ int readConfig(const char *fn, struct espGwayConfig *c) {
 // ----------------------------------------------------------------------------
 int writeGwayCfg(const char *fn) {
 
-	gwayConfig.sf = (uint8_t) sf;
 	gwayConfig.ssid = WiFi.SSID();
 	//gwayConfig.pass = WiFi.PASS();					// XXX We should find a way to store the password too
-	gwayConfig.ch = ifreq;
+	gwayConfig.ch = ifreq;								// Frequency Index
+	gwayConfig.sf = (uint8_t) sf;						// Spreading Factor
 	gwayConfig.debug = debug;
+	gwayConfig.pdebug = pdebug;
 	gwayConfig.cad = _cad;
 	gwayConfig.hop = _hop;
 #if GATEWAYNODE==1
 	gwayConfig.fcnt = frameCount;
 #endif
-
 	return(writeConfig(fn, &gwayConfig));
 }
 
@@ -211,6 +234,7 @@ int writeConfig(const char *fn, struct espGwayConfig *c) {
 	f.print("SF");   f.print('='); f.print((*c).sf);   f.print('\n');
 	f.print("FCNT"); f.print('='); f.print((*c).fcnt); f.print('\n');
 	f.print("DEBUG"); f.print('='); f.print((*c).debug); f.print('\n');
+	f.print("PDEBUG"); f.print('='); f.print((*c).pdebug); f.print('\n');
 	f.print("CAD");  f.print('='); f.print((*c).cad); f.print('\n');
 	f.print("HOP");  f.print('='); f.print((*c).hop); f.print('\n');
 	f.print("NODE");  f.print('='); f.print((*c).isNode); f.print('\n');
@@ -270,24 +294,28 @@ void addLog(const unsigned char * line, int cnt)
 	// Make sure to write the config record also
 	if (!SPIFFS.exists(fn)) {
 #if DUSB>=1
-		Serial.print(F("ERROR:: addLog:: file="));
-		Serial.print(fn);
-		Serial.print(F(" does not exist .. rec="));
-		Serial.print(gwayConfig.logFileRec);
-		Serial.println();
+		if (( debug >= 1 ) && ( pdebug & P_GUI )) {
+			Serial.print(F("ERROR:: addLog:: file="));
+			Serial.print(fn);
+			Serial.print(F(" does not exist .. rec="));
+			Serial.print(gwayConfig.logFileRec);
+			Serial.println();
+		}
 #endif
 	}
 	
 	File f = SPIFFS.open(fn, "a");
 	if (!f) {
 #if DUSB>=1
-		Serial.println("file open failed=");
-		Serial.println(fn);
+		if (debug>=1) {
+			Serial.println("file open failed=");
+			Serial.println(fn);
+		}
 #endif
 	}
 	
 #if DUSB>=1
-	if (debug>=1) {
+	if (( debug>=1 ) && ( pdebug & P_RX )) {
 		Serial.print(F("addLog:: fileno="));
 		Serial.print(gwayConfig.logFileNo);
 		Serial.print(F(", rec="));

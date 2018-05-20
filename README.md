@@ -1,6 +1,6 @@
 # Single Channel LoRaWAN Gateway
 
-Version 5.0.8, March 31, 2018  
+Version 5.1.0, May 10, 2018  
 Author: M. Westenberg (mw12554@hotmail.com)  
 Copyright: M. Westenberg (mw12554@hotmail.com)  
 
@@ -64,9 +64,17 @@ see nothing on the Serial Monitor.
 this section.
 4. Edit the ESP-sc-gway.h file and adapt the "wpas" structure. `Make sure that the first line of this structure 
 remains empty and put the SSID and Password of your router on the second line of the array.
-5. Compile the code and doenload the executable over USB to the gateway. If all is right, you should
+5. In the preferences part of the IDE, set the location of your sketch to the place where you put the 
+sketch on your computer. This will make sure that for example the required libraries that are shipped 
+with this sketch in the libraries folder can be found by the compiler
+6. If not yet done: Load the support for ESP8266 in your IDE. <Tools><Board><Board Manager...>
+7. Load the other necessary libraries that are not shipped with this sketch in your IDE. 
+Goto <Sketch><Include Library><Manage Libraries...> in the IDE to do so. 
+- ArduinoJson (version 5.13.1)
+- WifiManager (Version 0.12.0 by Tzapu)
+8. Compile the code and download the executable over USB to the gateway. If all is right, you should
 see the gateway starting up on the Serial Monitor.
-6. Note the IP address that the device receives from your router. Use that IP address in a browser on 
+9. Note the IP address that the device receives from your router. Use that IP address in a browser on 
 your computer to connect to the gateway with the browser.
 
 Now your gateway should be running. Use the webpage to set "debug" to 1 and you should be able to see packages
@@ -163,7 +171,7 @@ gateway will be reduced in CAD mode.
  
 ### Over the Air Updates (OTA)
 
-As from version 4.0.6 the gateway allows over the air updated if the setting A_OTA is on. 
+As from version 4.0.6 the gateway allows over the air updating if the setting A_OTA is on. 
 The over the air software requires once setting of the 4.0.6 version over USB to the gateway,
 after which the software is (default) enabled for use.
 

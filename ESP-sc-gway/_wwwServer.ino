@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
-// Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.9
-// Date: 2018-04-07
+// Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
+// Version 5.1.0
+// Date: 2018-04-17
 //
 // 	based on work done by many people and making use of several libraries.
 //
@@ -130,8 +130,9 @@ static void setVariables(const char *cmd, const char *arg) {
 		_hop=(bool)atoi(arg);
 		if (! _hop) { 
 			ifreq=0; 
-			freq=freqs[0]; 
+			freq=freqs[ifreq]; 
 			rxLoraModem();
+			sf = SF7;
 			cadScanner();
 		}
 		writeGwayCfg(CONFIGFILE);									// Save configuration to file
@@ -306,14 +307,14 @@ static void settingsData()
 	response +="<table class=\"config_table\">";
 	response +="<tr>";
 	response +="<th class=\"thead\">Setting</th>";
-	response +="<th style=\"background-color: green; color: white; width:120px;\">Value</th>";
-	response +="<th colspan=\"2\" style=\"background-color: green; color: white; width:100px;\">Set</th>";
+	response +="<th colspan=\"2\" style=\"background-color: green; color: white; width:120px;\">Value</th>";
+	response +="<th colspan=\"4\" style=\"background-color: green; color: white; width:100px;\">Set</th>";
 	response +="</tr>";
 	
 	bg = " background-color: ";
 	bg += ( _cad ? "LightGreen" : "orange" );
 	response +="<tr><td class=\"cell\">CAD</td>";
-	response +="<td style=\"border: 1px solid black;"; response += bg; response += "\">";
+	response +="<td colspan=\"2\" style=\"border: 1px solid black;"; response += bg; response += "\">";
 	response += ( _cad ? "ON" : "OFF" );
 	response +="<td style=\"border: 1px solid black; width:40px;\"><a href=\"CAD=1\"><button>ON</button></a></td>";
 	response +="<td style=\"border: 1px solid black; width:40px;\"><a href=\"CAD=0\"><button>OFF</button></a></td>";
@@ -322,13 +323,13 @@ static void settingsData()
 	bg = " background-color: ";
 	bg += ( _hop ? "LightGreen" : "orange" );
 	response +="<tr><td class=\"cell\">HOP</td>";
-	response +="<td style=\"border: 1px solid black;"; response += bg; response += "\">";
+	response +="<td colspan=\"2\" style=\"border: 1px solid black;"; response += bg; response += "\">";
 	response += ( _hop ? "ON" : "OFF" );
 	response +="<td style=\"border: 1px solid black; width:40px;\"><a href=\"HOP=1\"><button>ON</button></a></td>";
 	response +="<td style=\"border: 1px solid black; width:40px;\"><a href=\"HOP=0\"><button>OFF</button></a></td>";
 	response +="</tr>";
 	
-	response +="<tr><td class=\"cell\">SF Setting</td><td class=\"cell\">";
+	response +="<tr><td class=\"cell\">SF Setting</td><td class=\"cell\" colspan=\"2\">";
 	if (_cad) {
 		response += "AUTO</td>";
 	}
@@ -341,7 +342,7 @@ static void settingsData()
 	
 	// Channel
 	response +="<tr><td class=\"cell\">Channel</td>";
-	response +="<td class=\"cell\">"; 
+	response +="<td class=\"cell\" colspan=\"2\">"; 
 	if (_hop) {
 		response += "AUTO</td>";
 	}
@@ -353,18 +354,72 @@ static void settingsData()
 	}
 	response +="</tr>";
 
-	// Debugging options	
-	response +="<tr><td class=\"cell\">";
-	response +="Debug level</td><td class=\"cell\">"; 
+	// Debugging options, only when DUSB is set, otherwise no
+	// serial activity
+#if DUSB>=1	
+	response +="<tr><td class=\"cell\">Debug level</td><td class=\"cell\" colspan=\"2\">"; 
 	response +=debug; 
 	response +="</td>";
 	response +="<td class=\"cell\"><a href=\"DEBUG=-1\"><button>-</button></a></td>";
 	response +="<td class=\"cell\"><a href=\"DEBUG=1\"><button>+</button></a></td>";
 	response +="</tr>";
+	
+	response +="<tr><td class=\"cell\">Debug pattern</td>"; 
+	
+	bg = ( (pdebug & P_SCAN) ? "LightGreen" : "orange" ); 
+	response +="<td class=\"cell\" style=\"border: 1px solid black; width:20px; background-color: ";
+	response += bg;	response += "\">";
+	response +="<a href=\"PDEBUG=SCAN\">";
+	response +="<button>SCN</button></a></td>";
+	
+	bg = ( (pdebug & P_CAD) ? "LightGreen" : "orange" ); 
+	response +="<td class=\"cell\" style=\"border: 1px solid black; width:20px; background-color: ";
+	response += bg;	response += "\">";
+	response +="<a href=\"PDEBUG=CAD\">";
+	response +="<button>CAD</button></a></td>";
 
+	bg = ( (pdebug & P_RX) ? "LightGreen" : "orange" ); 
+	response +="<td class=\"cell\" style=\"border: 1px solid black; width:20px; background-color: ";
+	response += bg;	response += "\">";
+	response +="<a href=\"PDEBUG=RX\">";
+	response +="<button>RX</button></a></td>";
+
+	bg = ( (pdebug & P_TX) ? "LightGreen" : "orange" ); 
+	response +="<td class=\"cell\" style=\"border: 1px solid black; width:20px; background-color: ";
+	response += bg;	response += "\">";
+	response +="<a href=\"PDEBUG=TX\">";
+	response +="<button>TX</button></a></td>";
+	response += "</tr>";
+	
+	// Use a second Line
+	response +="<tr><td class=\"cell\"></td>";
+	bg = ( (pdebug & P_PRE) ? "LightGreen" : "orange" ); 
+	response +="<td class=\"cell\" style=\"border: 1px solid black; width:20px; background-color: ";
+	response += bg;	response += "\">";
+	response +="<a href=\"PDEBUG=PRE\">";
+	response +="<button>PRE</button></a></td>";
+
+	bg = ( (pdebug & P_MAIN) ? "LightGreen" : "orange" ); 
+	response +="<td class=\"cell\" style=\"border: 1px solid black; width:20px; background-color: ";
+	response += bg;	response += "\">";
+	response +="<a href=\"PDEBUG=MAIN\">";
+	response +="<button>MAI</button></a></td>";
+	
+	bg = ( (pdebug & P_GUI) ? "LightGreen" : "orange" ); 
+	response +="<td class=\"cell\" style=\"border: 1px solid black; width:20px; background-color: ";
+	response += bg;	response += "\">";
+	response +="<a href=\"PDEBUG=GUI\">";
+	response +="<button>GUI</button></a></td>";
+
+	bg = ( (pdebug & P_RADIO) ? "LightGreen" : "orange" ); 
+	response +="<td class=\"cell\" style=\"border: 1px solid black; width:20px; background-color: ";
+	response += bg;	response += "\">";
+	response +="<a href=\"PDEBUG=RADIO\">";
+	response +="<button>RDIO</button></a></td>";
+	response +="</tr>";
+#endif
 	// Serial Debugging
-	response +="<tr><td class=\"cell\">";
-	response +="Usb Debug</td><td class=\"cell\">"; 
+	response +="<tr><td class=\"cell\">Usb Debug</td><td class=\"cell\" colspan=\"2\">"; 
 	response +=DUSB; 
 	response +="</td>";
 	//response +="<td class=\"cell\"> </td>";
@@ -373,7 +428,7 @@ static void settingsData()
 	
 #if GATEWAYNODE==1
 	response +="<tr><td class=\"cell\">Framecounter Internal Sensor</td>";
-	response +="<td class=\"cell\">";
+	response +="<td class=\"cell\" colspan=\"2\">";
 	response +=frameCount;
 	response +="</td><td colspan=\"2\" style=\"border: 1px solid black;\">";
 	response +="<button><a href=\"/FCNT\">RESET</a></button></td>";
@@ -393,7 +448,7 @@ static void settingsData()
 	bg = " background-color: ";
 	bg += ( (gwayConfig.refresh == 1) ? "LightGreen" : "orange" );
 	response +="<tr><td class=\"cell\">WWW Refresh</td>";
-	response +="<td class=\"cell\" style=\"border: 1px solid black;" + bg + "\">";
+	response +="<td class=\"cell\" colspan=\"2\" style=\"border: 1px solid black; " + bg + "\">";
 	response += ( (gwayConfig.refresh == 1) ? "ON" : "OFF" );
 	response +="<td style=\"border: 1px solid black; width:40px;\"><a href=\"REFR=1\"><button>ON</button></a></td>";
 	response +="<td style=\"border: 1px solid black; width:40px;\"><a href=\"REFR=0\"><button>OFF</button></a></td>";
@@ -402,24 +457,24 @@ static void settingsData()
 
 	// Reset Accesspoint
 #if WIFIMANAGER==1
-	response +="<tr><td>";
+	response +="<tr><td><tr><td>";
 	response +="Click <a href=\"/NEWSSID\">here</a> to reset accesspoint<br>";
 	response +="</td><td></td></tr>";
 #endif
 
 	// Update Firmware all statistics
-	response +="<tr><td class=\"cell\">Update Firmware</td>";
-	response +="<td class=\"cell\"></td><td colspan=\"2\" class=\"cell\"><a href=\"/UPDATE=1\"><button>UPDATE</button></a></td></tr>";
+	response +="<tr><td class=\"cell\">Update Firmware</td><td colspan=\"2\"></td>";
+	response +="<td class=\"cell\" colspan=\"2\" class=\"cell\"><a href=\"/UPDATE=1\"><button>UPDATE</button></a></td></tr>";
 
 	// Reset all statistics
 #if STATISTICS >= 1
 	response +="<tr><td class=\"cell\">Statistics</td>";
-	response +=String() + "<td class=\"cell\">"+statc.resets+"</td>";
+	response +=String() + "<td class=\"cell\" colspan=\"2\" >"+statc.resets+"</td>";
 	response +="<td colspan=\"2\" class=\"cell\"><a href=\"/RESET\"><button>RESET</button></a></td></tr>";
 
 	// Reset
 	response +="<tr><td class=\"cell\">Boots and Resets</td>";
-	response +=String() + "<td class=\"cell\">"+gwayConfig.boots+"</td>";
+	response +=String() + "<td class=\"cell\" colspan=\"2\" >"+gwayConfig.boots+"</td>";
 	response +="<td colspan=\"2\" class=\"cell\"><a href=\"/BOOT\"><button>RESET</button></a></td></tr>";
 #endif
 	
@@ -813,11 +868,11 @@ void sendWebPage(const char *cmd, const char *arg)
 
 	statisticsData(); yield();		 			// Node statistics
 	sensorData(); yield();						// Display the sensor history, message statistics
-	systemData(); yield();						// System statistics such as heap etc.
+
+	settingsData(); yield();					// Display web configuration
 	wifiData(); yield();						// WiFI specific parameters
 	
-	settingsData(); yield();						// Display web configuration
-	
+	systemData(); yield();						// System statistics such as heap etc.
 	interruptData(); yield();					// Display interrupts only when debug >= 2
 		
 	// Close the client connection to server
@@ -891,6 +946,14 @@ void setupWWW()
 		
 		statc.resets= 0;
 		writeGwayCfg(CONFIGFILE);
+#if STATISTICS >= 3
+		statc.sf7_0 = 0; statc.sf7_1 = 0; statc.sf7_2 = 0;
+		statc.sf8_0 = 0; statc.sf8_1 = 0; statc.sf8_2 = 0;
+		statc.sf9_0 = 0; statc.sf9_1 = 0; statc.sf9_2 = 0;
+		statc.sf10_0= 0; statc.sf10_1= 0; statc.sf10_2= 0;
+		statc.sf11_0= 0; statc.sf11_1= 0; statc.sf11_2= 0;
+		statc.sf12_0= 0; statc.sf12_1= 0; statc.sf12_2= 0;
+#endif
 #endif
 #endif
 		server.sendHeader("Location", String("/"), true);
@@ -930,6 +993,57 @@ void setupWWW()
 	});
 	server.on("/DEBUG=1", []() {
 		debug = (debug+1)%4;
+		writeGwayCfg(CONFIGFILE);				// Save configuration to file
+		server.sendHeader("Location", String("/"), true);
+		server.send ( 302, "text/plain", "");
+	});
+
+	// Set PDEBUG parameter
+	//
+		server.on("/PDEBUG=SCAN", []() {		// Set debug level 0-2						
+		pdebug ^= P_SCAN;
+		writeGwayCfg(CONFIGFILE);				// Save configuration to file
+		server.sendHeader("Location", String("/"), true);
+		server.send ( 302, "text/plain", "");
+	});
+	server.on("/PDEBUG=CAD", []() {				// Set debug level 0-2						
+		pdebug ^= P_CAD;
+		writeGwayCfg(CONFIGFILE);				// Save configuration to file
+		server.sendHeader("Location", String("/"), true);
+		server.send ( 302, "text/plain", "");
+	});
+	server.on("/PDEBUG=RX", []() {				// Set debug level 0-2						
+		pdebug ^= P_RX;
+		writeGwayCfg(CONFIGFILE);				// Save configuration to file
+		server.sendHeader("Location", String("/"), true);
+		server.send ( 302, "text/plain", "");
+	});
+	server.on("/PDEBUG=TX", []() {				// Set debug level 0-2						
+		pdebug ^= P_TX;
+		writeGwayCfg(CONFIGFILE);				// Save configuration to file
+		server.sendHeader("Location", String("/"), true);
+		server.send ( 302, "text/plain", "");
+	});
+	server.on("/PDEBUG=PRE", []() {				// Set debug level 0-2						
+		pdebug ^= P_PRE;
+		writeGwayCfg(CONFIGFILE);				// Save configuration to file
+		server.sendHeader("Location", String("/"), true);
+		server.send ( 302, "text/plain", "");
+	});
+	server.on("/PDEBUG=MAIN", []() {				// Set debug level 0-2						
+		pdebug ^= P_MAIN;
+		writeGwayCfg(CONFIGFILE);				// Save configuration to file
+		server.sendHeader("Location", String("/"), true);
+		server.send ( 302, "text/plain", "");
+	});
+	server.on("/PDEBUG=GUI", []() {				// Set debug level 0-2						
+		pdebug ^= P_GUI;
+		writeGwayCfg(CONFIGFILE);				// Save configuration to file
+		server.sendHeader("Location", String("/"), true);
+		server.send ( 302, "text/plain", "");
+	});
+	server.on("/PDEBUG=RADIO", []() {				// Set debug level 0-2						
+		pdebug ^= P_RADIO;
 		writeGwayCfg(CONFIGFILE);				// Save configuration to file
 		server.sendHeader("Location", String("/"), true);
 		server.send ( 302, "text/plain", "");

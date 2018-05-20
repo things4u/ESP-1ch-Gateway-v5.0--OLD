@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
-// Copyright (c) 2016, 2017 Maarten Westenberg
-// Verison 5.0.9
-// Date: 2018-04-07
+// Copyright (c) 2016, 2017, 2018 Maarten Westenberg
+// Verison 5.1.0
+// Date: 2018-04-17
 //
 // All rights reserved. This program and the accompanying materials
 // are made available under the terms of the MIT License
@@ -486,8 +486,9 @@ int sensorPacket() {
 #endif
 
 	if (_cad) {
-		// Set the state to CAD scanning after receiving
+		// Set the state to CAD scanning after sending a packet
 		_state = S_SCAN;						// Inititialise scanner
+		sf = SF7;
 		cadScanner();
 	}
 	else {

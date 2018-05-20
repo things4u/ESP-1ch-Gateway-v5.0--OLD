@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
-// Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.9
-// Date: 2018-04-07
+// Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
+// Version 5.1.0
+// Date: 2018-04-17
 // Author: Maarten Westenberg (mw12554@hotmail.com)
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1-ch gateway
@@ -90,9 +90,8 @@ extern "C" {
 #include "AES-128_V10.h"
 #endif
 
-
-
-int debug=1;									// Debug level! 0 is no msgs, 1 normal, 2 extensive
+uint8_t debug=1;								// Debug level! 0 is no msgs, 1 normal, 2 extensive
+uint8_t pdebug=0xFF;							// Allow all atterns (departments)
 
 // You can switch webserver off if not necessary but probably better to leave it in.
 #if A_SERVER==1
@@ -146,6 +145,7 @@ time_t startTime = 0;							// The time in seconds since 1970 that the server st
 												// be aware that UTP time has to succeed for meaningful values.
 												// We use this variable since millis() is reset every 50 days...
 uint32_t eventTime = 0;							// Timing of _event to change value (or not).
+uint32_t doneTime = 0;							// Time to expire when CDDONE takes too long
 uint32_t statTime = 0;							// last time we sent a stat message to server
 uint32_t pulltime = 0;							// last time we sent a pull_data request to server
 uint32_t lastTmst = 0;							// Last activity Timer
@@ -436,6 +436,7 @@ int WlanReadWpa() {
 	if (gwayConfig.sf != (uint8_t) 0) sf = (sf_t) gwayConfig.sf;
 	ifreq = gwayConfig.ch;
 	debug = gwayConfig.debug;
+	pdebug = gwayConfig.pdebug;
 	_cad = gwayConfig.cad;
 	_hop = gwayConfig.hop;
 	gwayConfig.boots++;							// Every boot of the system we increase the reset
@@ -472,12 +473,13 @@ int WlanReadWpa() {
 #if WIFIMANAGER==1
 int WlanWriteWpa( char* ssid, char *pass) {
 
+#if DUSB>=1
 	Serial.print(F("WlanWriteWpa:: ssid=")); 
 	Serial.print(ssid);
 	Serial.print(F(", pass=")); 
 	Serial.print(pass); 
 	Serial.println();
-	
+#endif
 	// Version 3.3 use of config file
 	String s((char *) ssid);
 	gwayConfig.ssid = s;
@@ -542,7 +544,7 @@ int WlanConnect(int maxTry) {
 		// Start with well-known access points in the list
 		char *ssid		= wpa[j].login;
 		char *password	= wpa[j].passw;
-	
+#if DUSB>=1
 		Serial.print(i);
 		Serial.print(':');
 		Serial.print(j); 
@@ -553,7 +555,7 @@ int WlanConnect(int maxTry) {
 			Serial.print(password);
 		}
 		Serial.println();
-		
+#endif		
 		// Count the number of times we call WiFi.begin
 		gwayConfig.wifis++;
 
@@ -573,38 +575,55 @@ int WlanConnect(int maxTry) {
 		while (((WiFi.status()) != WL_CONNECTED) && (agains < 10)) {
 			agains++;
 			delay(agains*500);
+#if DUSB>=1
 			if (debug>=0) Serial.print(".");
+#endif
 		}
 		
 		// Check the connection status again
 		switch (WiFi.status()) {
 			case WL_CONNECTED:
+#if DUSB>=1
 				if (debug>=0)
 					Serial.println(F("WlanConnect:: CONNECTED"));				// 3
+#endif
 				return(1);
 				break;
 			case WL_IDLE_STATUS:
+#if DUSB>=1
 				Serial.println(F("WlanConnect:: IDLE"));						// 0
+#endif
 				break;
 			case WL_NO_SSID_AVAIL:
+#if DUSB>=1
 				Serial.println(F("WlanConnect:: NO SSID"));						// 1
+#endif
 				break;
 			case WL_CONNECT_FAILED:
+#if DUSB>=1
 				Serial.println(F("WlanConnect:: FAILED"));						// 4
+#endif
 				break;
 			case WL_DISCONNECTED:
+#if DUSB>=1
 				Serial.println(F("WlanConnect:: DISCONNECTED"));				// 6
-				
+#endif				
 				break;
 			case WL_SCAN_COMPLETED:
+#if DUSB>=1
 				Serial.println(F("WlanConnect:: SCAN COMPLETE"));				// 2
+#endif
 				break;
 			case WL_CONNECTION_LOST:
+#if DUSB>=1
 				Serial.println(F("WlanConnect:: LOST"));						// 5
+#endif
 				break;
 			default:
+#if DUSB>=1
 				Serial.print(F("WlanConnect:: code="));
 				Serial.println(WiFi.status());
+#endif
 				break;
 		}
 
@@ -615,7 +634,7 @@ int WlanConnect(int maxTry) {
 	// It should not be possible to be here while WL_CONNECTed
 	if (WiFi.status() == WL_CONNECTED) {
 #if DUSB>=1
-		if (debug>=3) {
+		if (( debug>=3 ) && ( pdebug & P_MAIN )) {
 			Serial.print(F("WLAN connected"));
 			Serial.println();
 		}
@@ -625,11 +644,13 @@ int WlanConnect(int maxTry) {
 	}
 	else {
 #if WIFIMANAGER==1
+#if DUSB>=1
 		Serial.println(F("Starting Access Point Mode"));
 		Serial.print(F("Connect Wifi to accesspoint: "));
 		Serial.print(AP_NAME);
 		Serial.print(F(" and connect to IP: 192.168.4.1"));
 		Serial.println();
+#endif
 		wifiManager.autoConnect(AP_NAME, AP_PASSWD );
 		//wifiManager.startConfigPortal(AP_NAME, AP_PASSWD );
 		// At this point, there IS a Wifi Access Point found and connected
@@ -1068,7 +1089,7 @@ void pullData() {
 		Serial.print(pullIndex);
 		Serial.print(F("> "));
 		for (i=0; i<pullIndex; i++) {
-			Serial.print(pullDataReq[i],HEX);				// DEBUG: display JSON stat
+			Serial.print(pullDataReq[i],HEX);				// debug: display JSON stat
 			Serial.print(':');
 		}
 		Serial.println();
@@ -1179,7 +1200,9 @@ void setup() {
 	
 	Serial.begin(_BAUDRATE);						// As fast as possible for bus
 	delay(100);
+#if DUSB>=1
 	Serial.flush();
+
 	delay(500);
 
 	if (SPIFFS.begin()) {
@@ -1187,7 +1210,7 @@ void setup() {
 	}
 	else {
 	}
-	
+#endif	
 #if SPIFF_FORMAT>=1
 	SPIFFS.format();								// Normally disabled. Enable only when SPIFFS corrupt
 #endif
@@ -1319,7 +1342,10 @@ void setup() {
 	
 	//setTime((time_t)getNtpTime());
 	while (timeStatus() == timeNotSet) {
-		Serial.println(F("setupTime:: Time not set (yet)"));
+#if DUSB>=1
+		if (( debug>=0 ) && ( pdebug & P_MAIN )) 
+			Serial.println(F("setupTime:: Time not set (yet)"));
+#endif
 		delay(500);
 		time_t newTime;
 		newTime = (time_t)getNtpTime();
@@ -1327,11 +1353,14 @@ void setup() {
 	}
 	// When we are here we succeeded in getting the time
 	startTime = now();										// Time in seconds
+#if DUSB>=1
 	Serial.print("Time: "); printTime();
 	Serial.println();
-
+#endif
 	writeGwayCfg(CONFIGFILE );
+#if DUSB>=1
 	Serial.println(F("Gateway configuration saved"));
+#endif
 #endif //NTP_INTR
 
 #if A_SERVER==1	
@@ -1347,6 +1376,7 @@ void setup() {
 	
 	if (_cad) {
 		_state = S_SCAN;
+		sf = SF7;
 		cadScanner();										// Always start at SF7
 	}
 	else { 
@@ -1408,9 +1438,8 @@ void loop ()
 	// In this case we handle the interrupt ( e.g. message received)
 	// in userspace in loop().
 	//
-	//while (_event != 0x00) {							// 
-		stateMachine();									// do the state machine
-	//}
+	stateMachine();									// do the state machine
+
 	
 	// After a quiet period, make sure we reinit the modem and state machine.
 	// The interval is in seconds (about 10 seconds) as this re-init
@@ -1422,7 +1451,7 @@ void loop ()
 		(msgTime < statr[0].tmst) ) 
 	{
 #if DUSB>=1
-		if (debug>=1) {
+		if (( debug>=1 ) && ( pdebug & P_MAIN )) {
 			Serial.print("REINIT: ");
 			Serial.print( _MSG_INTERVAL );
 			Serial.print(F(" "));
@@ -1432,6 +1461,7 @@ void loop ()
 
 		if ((_cad) || (_hop)) {
 			_state = S_SCAN;
+			sf = SF7;
 			cadScanner();
 		}
 		else {
@@ -1462,7 +1492,8 @@ void loop ()
 
 	// I event is set, we know that we have a (soft) interrupt.
 	// After all necessary web/OTA services are scanned, we will
-	// reloop here for timing purposes. Do a less yield() as possible.
+	// reloop here for timing purposes. 
+	// Do as less yield() as possible.
 	// XXX 180326
 	if (_event == 1) return;
 	else yield();
@@ -1471,10 +1502,11 @@ void loop ()
 	// We will not read Udp in this loop cycle then
 	if (WlanConnect(1) < 0) {
 #if DUSB>=1
+		if (( debug >= 0 ) && ( pdebug & P_MAIN ))
 			Serial.println(F("loop: ERROR reconnect WLAN"));
 #endif
-			yield();
-			return;										// Exit loop if no WLAN connected
+		yield();
+		return;										// Exit loop if no WLAN connected
 	}
 	
 	// So if we are connected 
@@ -1492,7 +1524,8 @@ void loop ()
 			// This command is found in byte 4 (buffer[3])
 			if (readUdp(packetSize) <= 0) {
 #if DUSB>=1
-				if (debug>0) Serial.println(F("readUDP error"));
+				if (( debug>0 ) && ( pdebug & P_MAIN ))
+					Serial.println(F("readUDP error"));
 #endif
 				break;
 			}
@@ -1510,14 +1543,14 @@ void loop ()
 
     if ((nowSeconds - statTime) >= _STAT_INTERVAL) {	// Wake up every xx seconds
 #if DUSB>=1
-		if (debug>=2) {
+		if (( debug>=1 ) && ( pdebug & P_MAIN )) {
 			Serial.print(F("STAT <"));
 			Serial.flush();
 		}
 #endif
         sendstat();										// Show the status message and send to server
 #if DUSB>=1
-		if (debug>=2) {
+		if (( debug>=2 ) && ( pdebug & P_MAIN )) {
 			Serial.println(F(">"));
 			if (debug>=2) Serial.flush();
 		}
@@ -1537,7 +1570,9 @@ void loop ()
 			// could be battery but also other status info or sensor info
 		
 			if (sensorPacket() < 0) {
+#if DUSB>=1
 				Serial.println(F("sensorPacket: Error"));
+#endif
 			}
 		}
 #endif
@@ -1552,20 +1587,21 @@ void loop ()
 	nowSeconds = now();
     if ((nowSeconds - pulltime) >= _PULL_INTERVAL) {	// Wake up every xx seconds
 #if DUSB>=1
-		if (debug>=1) {
+		if (debug>=2) {
 			Serial.print(F("PULL <"));
-			if (debug>=2) Serial.flush();
+			if (debug>=1) Serial.flush();
 		}
 #endif
         pullData();										// Send PULL_DATA message to server
 		initLoraModem();								// XXX 180326, after adapting this function 
 		if (_cad) {
 #if DUSB>=1
-			if (debug>=1) {
+			if (( debug>=1 ) && ( pdebug & P_MAIN )) {
 				Serial.print(F("PULL:: _state set to S_SCAN"));
 			}
 #endif
 			_state = S_SCAN;
+			sf = SF7;
 			cadScanner();
 		}
 		else {
@@ -1575,7 +1611,7 @@ void loop ()
 		writeRegister(REG_IRQ_FLAGS_MASK, (uint8_t) 0x00);
 		writeRegister(REG_IRQ_FLAGS, 0xFF);				// Reset all interrupt flags
 #if DUSB>=1
-		if (debug>=1) {
+		if (( debug>=1 ) && ( pdebug & P_MAIN )) {
 			Serial.println(F(">"));
 			if (debug>=2) Serial.flush();
 		}

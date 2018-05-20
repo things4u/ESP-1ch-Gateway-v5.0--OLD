@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
-// Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.9
-// Date: 2018-04-09
+// Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
+// Version 5.1.0
+// Date: 2018-04-17
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -43,14 +43,14 @@ static void stringTime(time_t t, String& response) {
 	// now() gives seconds since 1970
 	// as millis() does rotate every 50 days
 	// So we need another timing parameter
-	time_t eventTime = t;
+	time_t eTime = t;
 	
 	// Rest is standard
-	byte _hour   = hour(eventTime);
-	byte _minute = minute(eventTime);
-	byte _second = second(eventTime);
+	byte _hour   = hour(eTime);
+	byte _minute = minute(eTime);
+	byte _second = second(eTime);
 	
-	switch(weekday(eventTime)) {
+	switch(weekday(eTime)) {
 		case 1: response += "Sunday "; break;
 		case 2: response += "Monday "; break;
 		case 3: response += "Tuesday "; break;
@@ -59,9 +59,9 @@ static void stringTime(time_t t, String& response) {
 		case 6: response += "Friday "; break;
 		case 7: response += "Saturday "; break;
 	}
-	response += String() + day(eventTime) + "-";
-	response += String() + month(eventTime) + "-";
-	response += String() + year(eventTime) + " ";
+	response += String() + day(eTime) + "-";
+	response += String() + month(eTime) + "-";
+	response += String() + year(eTime) + " ";
 	
 	if (_hour < 10) response += "0";
 	response += String() + _hour + ":";
@@ -104,17 +104,16 @@ void SerialStat(uint8_t intr)
 #if DUSB>=1
 	if (debug>=0) {
 		Serial.print(F("I="));
-		//Serial.print(intr,HEX);
 
-		if (intr & IRQ_LORA_RXTOUT_MASK) Serial.print(F("RXTOUT"));		// 0x80
-		if (intr & IRQ_LORA_RXDONE_MASK) Serial.print(F("RXDONE"));		// 0x40
-		if (intr & IRQ_LORA_CRCERR_MASK) Serial.print(F("CRCERR"));		// 0x20
-		if (intr & IRQ_LORA_HEADER_MASK) Serial.print(F("HEADER"));		// 0x10
-		if (intr & IRQ_LORA_TXDONE_MASK) Serial.print(F("TXDONE"));		// 0x08
-		if (intr & IRQ_LORA_CDDONE_MASK) Serial.print(F("CDDONE"));		// 0x04
-		if (intr & IRQ_LORA_FHSSCH_MASK) Serial.print(F("FHSSCH"));		// 0x02
-		if (intr & IRQ_LORA_CDDETD_MASK) Serial.print(F("CDDETD"));		// 0x01
-			
+		if (intr & IRQ_LORA_RXTOUT_MASK) Serial.print(F("RXTOUT "));		// 0x80
+		if (intr & IRQ_LORA_RXDONE_MASK) Serial.print(F("RXDONE "));		// 0x40
+		if (intr & IRQ_LORA_CRCERR_MASK) Serial.print(F("CRCERR "));		// 0x20
+		if (intr & IRQ_LORA_HEADER_MASK) Serial.print(F("HEADER "));		// 0x10
+		if (intr & IRQ_LORA_TXDONE_MASK) Serial.print(F("TXDONE "));		// 0x08
+		if (intr & IRQ_LORA_CDDONE_MASK) Serial.print(F("CDDONE "));		// 0x04
+		if (intr & IRQ_LORA_FHSSCH_MASK) Serial.print(F("FHSSCH "));		// 0x02
+		if (intr & IRQ_LORA_CDDETD_MASK) Serial.print(F("CDDETD "));		// 0x01
+
 		if (intr == 0x00) Serial.print(F("  --  "));
 			
 		Serial.print(F(", F="));
@@ -143,12 +142,12 @@ void SerialStat(uint8_t intr)
 				Serial.print(F("TX  "));
 			break;
 			case S_TXDONE:
-				Serial.print(F("TXDN"));
+				Serial.print(F("TXDONE"));
 			break;
 			default:
 				Serial.print(F(" -- "));
 		}
-		Serial.print(F(", t="));
+		Serial.print(F(", eT="));
 		Serial.print( micros() - eventTime );
 		Serial.println();
 	}

@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
-// Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
-// Version 5.0.9
-// Date: 2018-04-07
+// Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
+// Version 5.1.0
+// Date: 2018-04-17
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many other contributors.
@@ -43,10 +43,10 @@
 #define RSSI_WAIT	6							// was 25
 
 // How long will it take when hopping before a CDONE or CDETD value
-// should be present and measured.
+// is present and can be measured.
 //
-#define EVENT_WAIT 5000							// was 2000
-
+#define EVENT_WAIT 25000						// 25 milliseconds before CDDETD
+#define DONE_WAIT 1000							// 500 microseconds (1/2000) sec between CDDONE events
 
 
 // Our code should correct the server Tramission delay settings
@@ -92,7 +92,7 @@ volatile uint8_t _event=0;
 uint8_t _rssi;	
 
 bool _cad= (bool) _CAD;	// Set to true for Channel Activity Detection, only when dio 1 connected
-bool _hop=false;		// experimental; frequency hopping. Only use when dio2 connected
+bool _hop= (bool) false;// experimental; frequency hopping. Only use when dio2 connected
 
 unsigned long nowTime=0;
 unsigned long msgTime=0;
