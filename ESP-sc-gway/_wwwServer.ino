@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.1.0
-// Date: 2018-04-17
+// Version 5.1.1
+// Date: 2018-05-17
 //
 // 	based on work done by many people and making use of several libraries.
 //
@@ -53,35 +53,88 @@ static void printIP(IPAddress ipa, const char sep, String& response)
 
 // ================================================================================
 // WEBSERVER DECLARATIONS 
+// ================================================================================
 
 // None at the moment
 
 // ================================================================================
 // WEBSERVER FUNCTIONS 
+// ================================================================================
+
+// ----------------------------------------------------------------------------
+// WWWFILES
+// This function will open a pop-up in the browser and then 
+//	display the contents of a file in that window
+// Output is sent to server.sendContent()
+// ----------------------------------------------------------------------------
+void wwwFile(String fn) {
+
+	if (!SPIFFS.exists(fn)) {
+#if DUSB>=1
+		Serial.print(F("wwwButtons:: ERROR: file not found="));
+		Serial.println(fn);
+#endif
+		return;
+	}
+#if DUSB>=1
+	else {
+		Serial.print(F("wwwButtons:: File existist= "));
+		Serial.println(fn);
+	}
+#endif
+
+#if DUSB>=1
+		File f = SPIFFS.open(fn, "r");					// Open the file for reading
+		
+		int j;
+		for (j=0; j<LOGFILEREC; j++) {
+			
+			String s=f.readStringUntil('\n');
+			if (s.length() == 0) {
+				Serial.print(F("wwwFile:: String length 0"));
+				break;
+			}
+			server.sendContent(s.substring(12));		// Skip the first 12 Gateway specific binary characters
+			server.sendContent("\n");
+			yield();
+		}
+#endif
+	
+}
 
 // ----------------------------------------------------------------------------
 // Button function Stat, display statistics
 // ----------------------------------------------------------------------------
 void buttonStat() 
 {
+	Serial.print(F("Log"));
+	Serial.println();
+
+	printLog();
+
 	String response = "";
-	openWebPage();
-	wwwButtons();
-	response += "Statistics";
+	response+= "alert('Log');";
 	server.sendContent(response);
+
 }
 
+
 // ----------------------------------------------------------------------------
-// Button gunction log displays  logfiles and lets the user select one.
+// Button gunction Log displays  logfiles.
 // ----------------------------------------------------------------------------
 void buttonLog() 
 {
-	Serial.print(F("Log"));
-	Serial.println();
-	//alert("Print log on USB port. This may take a while");
-	printLog();
+	
 	String response = "";
-	response+= "alert('Log');";
+	String fn = "";
+	int i = 0;
+	
+	while (i< LOGFILEMAX ) {
+		fn = "/log-" + String(gwayConfig.logFileNo - i);
+		wwwFile(fn);									// Display the file contents in the browser
+		i++;
+	}
+	
 	server.sendContent(response);
 }
 
@@ -93,8 +146,10 @@ void buttonLog()
 static void wwwButtons()
 {
 	String response = "";
-	response += "<a href=\"STAT\"><button type=\"button\">Stat</button></a>";
-	response += "<a href=\"LOG\"><button type=\"button\">Log</button></a>";
+
+	response += "<a href=\"STAT\" download><button type=\"button\">Stat</button></a>";
+	response += "<a href=\"LOG\" download><button type=\"button\">Log</button></a>";
+
 	server.sendContent(response);									// Send to the screen
 }
 
@@ -466,6 +521,11 @@ static void settingsData()
 	response +="<tr><td class=\"cell\">Update Firmware</td><td colspan=\"2\"></td>";
 	response +="<td class=\"cell\" colspan=\"2\" class=\"cell\"><a href=\"/UPDATE=1\"><button>UPDATE</button></a></td></tr>";
 
+	// Format the Filesystem
+	response +="<tr><td class=\"cell\">Format SPIFFS</td>";
+	response +=String() + "<td class=\"cell\" colspan=\"2\" >"+""+"</td>";
+	response +="<td colspan=\"2\" class=\"cell\"><a href=\"/FORMAT\"><button>FORMAT</button></a></td></tr>";
+	
 	// Reset all statistics
 #if STATISTICS >= 1
 	response +="<tr><td class=\"cell\">Statistics</td>";
@@ -926,6 +986,13 @@ void setupWWW()
 		server.send ( 302, "text/plain", "");
 	});
 
+	// Format the filesystem
+	server.on("/FORMAT", []() {
+		Serial.print(F("FORMAT ..."));
+		SPIFFS.format();								// Normally disabled. Enable only when SPIFFS corrupt
+		Serial.println(F("DONE"));
+	});
+	
 	
 	// Reset the statistics
 	server.on("/RESET", []() {
@@ -1182,14 +1249,13 @@ void setupWWW()
 
 	// Display Statistics
 	server.on("/STAT", []() {
-		buttonStat();
 		server.sendHeader("Location", String("/"), true);
+		buttonStat();
 		server.send ( 302, "text/plain", "");
 	});
 	server.on("/LOG", []() {
-		buttonLog();
 		server.sendHeader("Location", String("/"), true);
-		
+		buttonLog();
 		server.send ( 302, "text/plain", "");
 	});
 	

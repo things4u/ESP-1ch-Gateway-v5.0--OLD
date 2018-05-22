@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.1.0
-// Date: 2018-04-25
+// Version 5.1.1
+// Date: 2018-05-25
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -115,30 +115,22 @@ void stateMachine()
 			//
 			// So we init the wait time for RXDONE based on the current SF.
 			// As for highter CF it takes longer to receive symbols
+			// Assume symbols in SF8 take twice the time of SF7
 			//
 			uint32_t doneWait = DONE_WAIT;			// Initial value
 			switch (sf) {
-				case SF7: 
-					break;
-				case SF8: 
-					doneWait *= 2;		// Assume symbols in SF8 take twice the time of SF7
-					break;
-				case SF9: 
-					doneWait *= 4;
-					break;
-				case SF10:
-					doneWait *= 8;
-					break;
-				case SF11:
-					doneWait *= 16;
-					break;
-				case SF12:
-					doneWait *= 32;
-					break;
+				case SF7: 	break;
+				case SF8: 	doneWait *= 2;	break;
+				case SF9: 	doneWait *= 4;	break;
+				case SF10:	doneWait *= 8;	break;
+				case SF11:	doneWait *= 16;	break;
+				case SF12:	doneWait *= 32;	break;
 				default:
 #if DUSB>=1
-				Serial.print(F("PRE:: DEF set"));
-				Serial.println();
+					if (( debug>=0 ) && ( pdebug & P_PRE )) {
+						Serial.print(F("PRE:: DEF set"));
+						Serial.println();
+					}
 #endif
 			}
 
@@ -153,7 +145,7 @@ void stateMachine()
 				_state = S_SCAN;
 				hop();								// increment ifreq = (ifreq + 1) % NUM_HOPS ;
 				cadScanner();						// Reset to initial SF, leave frequency "freqs[ifreq]"
-				rxLoraModem();
+				//rxLoraModem();
 #if DUSB>=1
 				if (( debug >= 1 ) && ( pdebug & P_PRE )) {
 					Serial.print(F("DONE::  "));
@@ -164,9 +156,8 @@ void stateMachine()
 				doneTime=micros();					// reset the timer on timeout
 				return;
 			}
-			// If timeout occurs and still no _event, then increase SF
-			// and when reaching SF12 hop and return
-			// Start scanning again
+			// If timeout occurs and still no _event, then hop
+			// and start scanning again
 			//
 			if ((micros() - eventTime) > eventWait ) 
 			{
@@ -188,7 +179,6 @@ void stateMachine()
 			// If we are here, NO timeout has occurred 
 			// So we need to return to the main State Machine
 			// as there was NO interrupt
-
 #if DUSB>=1
 			if (( debug>=3 ) && ( pdebug & P_PRE )) {
 				Serial.print(F("PRE:: eventTime="));
@@ -199,20 +189,21 @@ void stateMachine()
 				SerialStat(intr);
 			}
 #endif
-		
 		} // if SCAN or CAD
 		
 		// else, S_RX of S_TX for example
 		else {
-			yield();
+			//yield();								// May take too much time for RX
 		} // else S_RX or S_TX, TXDONE
+		
+		yield();
 		
 	}// intr==0 && _hop
 
 
 	doneTime = micros();						// We need CDDONE or other intr to reset timeout
 
-	  
+	// ================================================================
 	// This is the actual state machine of the gateway
 	// and its next actions are depending on the state we are in.
 	// For hop situations we do not get interrupts, so we have to
@@ -251,13 +242,12 @@ void stateMachine()
 		if (intr & IRQ_LORA_CDDETD_MASK) {
 
 			_state = S_RX;								// Set state to receiving
-			opmode(OPMODE_RX_SINGLE);					// set reg 0x01 to 0x06
 
 			// Set RXDONE interrupt to dio0, RXTOUT to dio1
 			writeRegister(REG_DIO_MAPPING_1, (
 				MAP_DIO0_LORA_RXDONE | 
 				MAP_DIO1_LORA_RXTOUT | 
-				MAP_DIO2_LORA_NOP 	| 
+				MAP_DIO2_LORA_NOP | 
 				MAP_DIO3_LORA_CRC));
 			
 			// Since new state is S_RX, accept no interrupts except RXDONE or RXTOUT
@@ -267,32 +257,34 @@ void stateMachine()
 				IRQ_LORA_RXTOUT_MASK | 
 				IRQ_LORA_HEADER_MASK | 
 				IRQ_LORA_CRCERR_MASK));
-				
-			writeRegister(REG_IRQ_FLAGS, (uint8_t) 0xFF );		// reset all interrupt flags
 			
 			// Starting with version 5.0.1 the waittime is dependent on the SF
 			// So for SF12 we wait longer (2^7 == 128 uSec) and for SF7 4 uSec.
 			//delayMicroseconds( (0x01 << ((uint8_t)sf - 5 )) );
-			delayMicroseconds( RSSI_WAIT );				// Wait some microseconds less
+			//if (_cad) 									// XXX 180520 make sure we start reading asap in hop
+			//	delayMicroseconds( RSSI_WAIT );				// Wait some microseconds less
 			
 			rssi = readRegister(REG_RSSI);				// Read the RSSI
 			_rssi = rssi;								// Read the RSSI in the state variable
 
 			_event = 0;									// Make 0, as soon as we have an interrupt
-// XXX IRQ writeregister was here May 11
-			detTime = micros();
+			detTime = micros();							// mark time that preamble detected
 			
 #if DUSB>=1
-			if (( debug>=1 ) && (  pdebug & P_SCAN )) {
+			if (( debug>=1 ) && ( pdebug & P_SCAN )) {
 				Serial.print(F("SCAN:: "));
 				SerialStat(intr);
 			}
 #endif
+			writeRegister(REG_IRQ_FLAGS, (uint8_t) 0xFF );		// reset all interrupt flags
+			opmode(OPMODE_RX_SINGLE);					// set reg 0x01 to 0x06 for receiving
+			
 		}//if
 
 		// CDDONE
 		// We received a CDDONE int telling us that we received a message on this
-		// frequency and possibly on one of its SF.
+		// frequency and possibly on one of its SF. Only when the incoming message
+		// matches the SF then also CDDETD is raised.
 		// If so, we switch to CAD state where we will wait for CDDETD event.
 		//
 		else if (intr & IRQ_LORA_CDDONE_MASK) {
@@ -403,6 +395,7 @@ void stateMachine()
 
 		// Intr=IRQ_LORA_CDDETD_MASK
 		// We have to set the sf based on a strong RSSI for this channel
+		// Also we set the state to S_RX and start receiving the message
 		//
 		if (intr & IRQ_LORA_CDDETD_MASK) {
 
@@ -414,7 +407,10 @@ void stateMachine()
 				MAP_DIO3_LORA_CRC ));
 			
 			// Accept no interrupts except RXDONE or RXTOUT
-			_event=0;								// if CDECT, state=S_RX so we wait for intr
+			_event=0;								
+			
+			// if CDECT, make state S_RX so we wait for RXDONE intr
+			
 			writeRegister(REG_IRQ_FLAGS_MASK, (uint8_t) ~(
 				IRQ_LORA_RXDONE_MASK | 
 				IRQ_LORA_RXTOUT_MASK |
@@ -423,10 +419,11 @@ void stateMachine()
 				
 			// Reset all interrupts as soon as possible
 			// But listen ONLY to RXDONE and RXTOUT interrupts 
-			writeRegister(REG_IRQ_FLAGS, IRQ_LORA_CDDETD_MASK | IRQ_LORA_RXDONE_MASK);
-			//writeRegister(REG_IRQ_FLAGS, (uint8_t) 0xFF );		// XXX 180326, reset all CAD Detect interrupt flags
+			//writeRegister(REG_IRQ_FLAGS, IRQ_LORA_CDDETD_MASK | IRQ_LORA_RXDONE_MASK);
+			// If we want to reset CRC, HEADER and RXTOUT flags as well
+			writeRegister(REG_IRQ_FLAGS, (uint8_t) 0xFF );		// XXX 180326, reset all CAD Detect interrupt flags
 			
-			_state = S_RX;								// Set state to start receiving
+			//_state = S_RX;								// XXX 180521 Set state to start receiving
 			opmode(OPMODE_RX_SINGLE);					// set reg 0x01 to 0x06, initiate READ
 			
 			delayMicroseconds( RSSI_WAIT );				// Wait some microseconds less
@@ -436,13 +433,13 @@ void stateMachine()
 
 			detTime = micros();
 #if DUSB>=1
-			if (( debug>=1 ) && ( pdebug & P_CAD )) {
+			if (( debug>=2 ) && ( pdebug & P_CAD )) {
 				Serial.print(F("CAD:: "));
 				SerialStat(intr);
 			}
 #endif
-
-
+			_state = S_RX;								// Set state to start receiving
+			
 		}// CDDETD
 		
 		// Intr == CADDONE
@@ -539,7 +536,7 @@ void stateMachine()
 	  // If we receive an RXDONE interrupt on dio0 with state==S_RX
 	  // 	So we should handle the received message
 	  // Else if it is RXTOUT interrupt
-	  //	So we handle this
+	  //	So we handle this, and get modem out of standby
 	  // Else
 	  //	Go back to SCAN
 	  //
@@ -675,40 +672,37 @@ void stateMachine()
 			_event=0;
 		}// RXDONE
 		
-		// RX TIMEOUT: We did receive message receive timeout
+		// RXOUT: 
+		// We did receive message receive timeout
+		// This is the most common event in hop mode, possibly due to the fact
+		// that receiving has started too late in the middle of a message
+		// (according to the documentation). So is there a way to start receiving
+		// immediately without delay.
 		//
 		else if (intr & IRQ_LORA_RXTOUT_MASK) {
 			
-			// Make sure we reset all interrupts//
+			// Make sure we reset all interrupts
+			// and get back to scanning
 			_event=0;												// Is set by interrupt handlers
 			writeRegister(REG_IRQ_FLAGS_MASK, (uint8_t) 0x00 );
 			writeRegister(REG_IRQ_FLAGS, (uint8_t) 0xFF);			// reset all interrupts
 			
-			// For the modem in cad state we reset to SF7
+			// If RXTOUT we put the modem in cad state and reset to SF7
 			// If a timeout occurs here we reset the cadscanner
 			//
-			
-			if ((_cad) || (_hop)) {									// XXX 01/01/2018 
+			if ((_cad) || (_hop)) {
 				// Set the state to CAD scanning
-
 #if DUSB>=1
 				if (( debug>=1 ) && ( pdebug & P_RX )) {
-					Serial.print(F("RXTOUT:: f="));
-					Serial.print(ifreq);
-					Serial.print(F(", sf="));
-					Serial.print(sf);
-					Serial.print(F(", dT="));
-					Serial.print(micros() - detTime);
-					Serial.print(F(": "));
+					Serial.print(F("RXTOUT:: "));
 					SerialStat(intr);
 				}
 #endif
-
 				sf = SF7;
 				cadScanner();								// Start the scanner after RXTOUT
-				_state = S_SCAN;				// New state is scan after RXTOUT
+				_state = S_SCAN;							// New state is scan
 
-			}// RXTOUT
+			}
 			
 			// If not in cad mode we are in single channel single sf mode.
 			//
@@ -716,8 +710,10 @@ void stateMachine()
 				_state = S_RX;								// Receive when interrupted
 				rxLoraModem();
 			}
-			eventTime=micros();				//There was an event for receive
-		}
+			
+			eventTime=micros();								//There was an event for receive
+			
+		}// RXTOUT
 		
 		else if (intr & IRQ_LORA_HEADER_MASK) {
 			// This interrupt means we received an header successfully
@@ -872,7 +868,7 @@ void stateMachine()
 	  // make sure that we pick up next interrupt
 	  default:
 #if DUSB>=1
-		if (debug >= 0) { 
+		if (( debug>=0) && ( pdebug & P_PRE )) { 
 			Serial.print("ERR state="); 
 			Serial.println(_state);	
 		}

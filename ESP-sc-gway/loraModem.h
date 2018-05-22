@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.1.0
-// Date: 2018-04-17
+// Version 5.1.1
+// Date: 2018-05-17
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many other contributors.
@@ -45,7 +45,7 @@
 // How long will it take when hopping before a CDONE or CDETD value
 // is present and can be measured.
 //
-#define EVENT_WAIT 25000						// 25 milliseconds before CDDETD
+#define EVENT_WAIT 20000						// XXX 180520 was 25 milliseconds before CDDETD timeout
 #define DONE_WAIT 1000							// 500 microseconds (1/2000) sec between CDDONE events
 
 
@@ -371,7 +371,6 @@ struct LoraUp {
 
 // FSK specific
 #define MAP_DIO0_FSK_READY     		0x00  // 00------ (packet sent / payload ready)
-
 #define MAP_DIO1_FSK_NOP       		0x30  // --11----
 #define MAP_DIO2_FSK_TXNOP     		0x04  // ----01--
 #define MAP_DIO2_FSK_TIMEOUT   		0x08  // ----10--
@@ -380,12 +379,12 @@ struct LoraUp {
 // Bits masking the corresponding IRQs from the radio
 #define IRQ_LORA_RXTOUT_MASK 		0x80	// RXTOUT
 #define IRQ_LORA_RXDONE_MASK 		0x40	// RXDONE after receiving the header and CRC, we receive payload part
-#define IRQ_LORA_CRCERR_MASK 		0x20
+#define IRQ_LORA_CRCERR_MASK 		0x20	// CRC error detected. Note that RXDONE will also be set
 #define IRQ_LORA_HEADER_MASK 		0x10	// valid HEADER mask. This interrupt is first when receiving a message
-#define IRQ_LORA_TXDONE_MASK 		0x08
+#define IRQ_LORA_TXDONE_MASK 		0x08	// End of TRansmission
 #define IRQ_LORA_CDDONE_MASK 		0x04	// CDDONE
 #define IRQ_LORA_FHSSCH_MASK 		0x02
-#define IRQ_LORA_CDDETD_MASK 		0x01
+#define IRQ_LORA_CDDETD_MASK 		0x01	// Detect preamble channel
 
 
 // ----------------------------------------

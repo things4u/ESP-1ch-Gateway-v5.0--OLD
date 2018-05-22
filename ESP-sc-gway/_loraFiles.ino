@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.1.0
-// Date: 2018-04-17
+// Version 5.1.1
+// Date: 2018-05-17
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -265,12 +265,12 @@ int writeConfig(const char *fn, struct espGwayConfig *c) {
 // ----------------------------------------------------------------------------
 void addLog(const unsigned char * line, int cnt) 
 {
-#if STAT_LOG == 1
+#if STAT_LOG==1
 	char fn[16];
 	
 	if (gwayConfig.logFileRec > LOGFILEREC) {		// Have to make define for this
 		gwayConfig.logFileRec = 0;					// INn new logFile start ith record 0
-		gwayConfig.logFileNo++;					// Increase file ID
+		gwayConfig.logFileNo++;						// Increase file ID
 		gwayConfig.logFileNum++;					// Increase number of log files
 	}
 	gwayConfig.logFileRec++;
@@ -291,7 +291,7 @@ void addLog(const unsigned char * line, int cnt)
 	sprintf(fn,"/log-%d", gwayConfig.logFileNo); 
 	
 	// If there is no SPIFFS, Error
-	// Make sure to write the config record also
+	// Make sure to write the config record/line also
 	if (!SPIFFS.exists(fn)) {
 #if DUSB>=1
 		if (( debug >= 1 ) && ( pdebug & P_GUI )) {
@@ -315,7 +315,7 @@ void addLog(const unsigned char * line, int cnt)
 	}
 	
 #if DUSB>=1
-	if (( debug>=1 ) && ( pdebug & P_RX )) {
+	if (( debug>=1 ) && ( pdebug & P_GUI )) {
 		Serial.print(F("addLog:: fileno="));
 		Serial.print(gwayConfig.logFileNo);
 		Serial.print(F(", rec="));
@@ -332,9 +332,15 @@ void addLog(const unsigned char * line, int cnt)
 		Serial.println();
 	}
 #endif //DUSB
-	f.write(line, cnt);			// write/append the line to the file
+
+	int i;
+	for (i=0; i< 12; i++) {					// The first 12 bytes contain non printble characters
+	//	f.print(line[i],HEX);
+	//	f.print(' ');
+	}
+	f.write(&line[i], cnt-12);				// write/append the line to the file
 	f.print('\n');
-	f.close();					// Close the file after appending to it
+	f.close();								// Close the file after appending to it
 
 #endif //STAT_LOG
 }

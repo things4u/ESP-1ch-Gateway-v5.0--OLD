@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.1.0
-// Date: 2018-04-17
+// Version 5.1.1
+// Date: 2018-05-17
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -305,19 +305,55 @@ void  opmode(uint8_t mode)
 // receiver frequency is determined by ifreq index like so: freqs[ifreq] 
 // ----------------------------------------------------------------------------
 void hop() {
-	
-		ifreq = (ifreq + 1) % NUM_HOPS ;					// Increment the freq round robin
-		freq = freqs[ifreq];
-		setFreq(freqs[ifreq]);
 
-		sf = SF7;											// Set the sf to SF7
-		setRate(sf, 0x40);
+	// 1. Set radio to standby
+	opmode(OPMODE_STANDBY);
 		
-		// Be aware that micros() has increased significantly from calling 
-		// the hop function until printed below
-		//
+	// 3. Set frequency based on value in freq		
+	ifreq = (ifreq + 1) % NUM_HOPS ;							// Increment the freq round robin
+	freq = freqs[ifreq];
+	setFreq(freqs[ifreq]);
+
+	// 4. Set spreading Factor
+	sf = SF7;													// Starting the new frequency 
+	setRate(sf, 0x40);											// set the sf to SF7 
+		
+	// Low Noise Amplifier used in receiver
+	writeRegister(REG_LNA, (uint8_t) LNA_MAX_GAIN);  			// 0x0C, 0x23
+	
+	// 7. set sync word
+	writeRegister(REG_SYNC_WORD, (uint8_t) 0x34);				// set 0x39 to 0x34 LORA_MAC_PREAMBLE
+	
+	// prevent node to node communication
+	writeRegister(REG_INVERTIQ,0x27);							// 0x33, 0x27; to reset from TX
+	
+	// Max Payload length is dependent on 256 byte buffer. At startup TX starts at
+	// 0x80 and RX at 0x00. RX therefore maximized at 128 Bytes
+	writeRegister(REG_MAX_PAYLOAD_LENGTH,MAX_PAYLOAD_LENGTH);	// set 0x23 to 0x80==128 bytes
+	writeRegister(REG_PAYLOAD_LENGTH,PAYLOAD_LENGTH);			// 0x22, 0x40==64Byte long
+	
+	writeRegister(REG_FIFO_ADDR_PTR, (uint8_t) readRegister(REG_FIFO_RX_BASE_AD));	// set reg 0x0D to 0x0F
+	writeRegister(REG_HOP_PERIOD,0x00);							// reg 0x24, set to 0x00
+
+	// 5. Config PA Ramp up time								// set reg 0x0A  
+	writeRegister(REG_PARAMP, (readRegister(REG_PARAMP) & 0xF0) | 0x08); // set PA ramp-up time 50 uSec
+	
+	// Set 0x4D PADAC for SX1276 ; XXX register is 0x5a for sx1272
+	writeRegister(REG_PADAC_SX1276,  0x84); 					// set 0x4D (PADAC) to 0x84
+	//writeRegister(REG_PADAC, readRegister(REG_PADAC) | 0x4);
+	
+	
+	// 8. Reset interrupt Mask, enable all interrupts
+	writeRegister(REG_IRQ_FLAGS_MASK, 0x00);
+		
+	// 9. clear all radio IRQ flags
+    writeRegister(REG_IRQ_FLAGS, 0xFF);
+	
+	// Be aware that micros() has increased significantly from calling 
+	// the hop function until printed below
+	//
 #if DUSB>=1
-		if (debug>=2) {
+	if (debug>=2) {
 			Serial.print(F("hop:: freq="));
 			Serial.print(ifreq);
 			Serial.print(F(", sf="));
@@ -325,10 +361,10 @@ void hop() {
 			Serial.print(F(", tim="));
 			Serial.print(micros() - hopTime);
 			Serial.println();
-		}
+	}
 #endif
-		// Remember the last time we hop
-		hopTime = micros();									// At what time did we hop
+	// Remember the last time we hop
+	hopTime = micros();									// At what time did we hop
 
 }
 	
@@ -678,12 +714,7 @@ void rxLoraModem()
 	//opmode(OPMODE_LORA);										// Is already so
 	
 	// 2. Put the radio in sleep mode
-	//if (_hop) {
-	//	opmode(OPMODE_SLEEP);				// power save, and enable switch FSK/OOK ro LORA
-	//}
-	//else {
-		opmode(OPMODE_STANDBY);									// CAD set 0x01 to 0x00
-	//}
+	opmode(OPMODE_STANDBY);									// CAD set 0x01 to 0x00
 	
 	// 3. Set frequency based on value in freq
 	setFreq(freqs[ifreq]);										// set to 868.1MHz
@@ -741,6 +772,7 @@ void rxLoraModem()
 	else {
 		// Set Continous Receive Mode, usefull if we stay on one SF
 		_state= S_RX;
+		if (_hop) Serial.println(F("rxLoraModem:: ERROR continuous receive in hop mode"));
 		opmode(OPMODE_RX);										// 0x80 | 0x05 (listen)
 	}
 	
@@ -781,7 +813,7 @@ void cadScanner()
 	// listen to LORA_MAC_PREAMBLE
 	writeRegister(REG_SYNC_WORD, (uint8_t) 0x34);				// set reg 0x39 to 0x34
 	
-	// Set the interrupts we want top listen to
+	// Set the interrupts we want to listen to
 	writeRegister(REG_DIO_MAPPING_1, (uint8_t)(
 		MAP_DIO0_LORA_CADDONE | 
 		MAP_DIO1_LORA_CADDETECT | 

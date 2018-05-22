@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.1.0
-// Date: 2018-04-17
+// Version 5.1.1
+// Date: 2018-05-17
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -528,11 +528,9 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 // Receive a LoRa message and fill the buff_up char buffer.
 // returns values:
 // - returns the length of string returned in buff_up
-// - returns -1 when no message arrived.
+// - returns -1 or -2 when no message arrived, depending connection.
 //
 // This is the "highlevel" function called by loop()
-// _state is S_RX when starting and
-// _state is S_STANDBY when leaving function
 // ----------------------------------------------------------------------------
 int receivePacket()
 {

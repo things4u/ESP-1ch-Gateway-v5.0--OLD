@@ -1,11 +1,10 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.1.0
-// Date: 2018-04-17
+// Version 5.1.1
+// Date: 2018-05-17
 // Author: Maarten Westenberg (mw12554@hotmail.com)
 //
-// 	based on work done by Thomas Telkamp for Raspberry PI 1-ch gateway
-//	and many others.
+// Based on work done by Thomas Telkamp for Raspberry PI 1-ch gateway and many others.
 //
 // All rights reserved. This program and the accompanying materials
 // are made available under the terms of the MIT License
@@ -25,12 +24,9 @@
 //
 // ----------------------------------------------------------------------------------------
 
-//
+#include "ESP-sc-gway.h"						// This file contains configuration of GWay
 
-#include "ESP-sc-gway.h"					
-// This file contains configuration of GWay
-
-#include <Esp.h>
+#include <Esp.h>								// ESP8266 specific IDE functions
 #include <string.h>
 #include <stdio.h>
 #include <sys/types.h>
@@ -41,7 +37,7 @@
 #include <cstring>
 #include <string>								// C++ specifix string functions
 
-#include <SPI.h>
+#include <SPI.h>								// For the RFM95 bus
 #include <TimeLib.h>							// http://playground.arduino.cc/code/time
 #include <DNSServer.h>							// Local DNSserver
 #include <ArduinoJson.h>
@@ -362,7 +358,8 @@ time_t getNtpTime()
 	
     if (!sendNtpRequest(ntpServer))					// Send the request for new time
 	{
-		if (debug>0) Serial.println(F("sendNtpRequest failed"));
+		if (( debug>=0 ) && ( pdebug & P_MAIN ))
+			Serial.println(F("sendNtpRequest failed"));
 		return(0);
 	}
 	
@@ -402,7 +399,7 @@ time_t getNtpTime()
 	gwayConfig.ntpErr++;
 	gwayConfig.ntpErrTime = now();
 #if DUSB>=1
-	if (debug>0) {
+	if (( debug>=0 ) && ( pdebug & P_MAIN )) {
 		Serial.println(F("getNtpTime:: read failed"));
 	}
 #endif
@@ -474,11 +471,13 @@ int WlanReadWpa() {
 int WlanWriteWpa( char* ssid, char *pass) {
 
 #if DUSB>=1
-	Serial.print(F("WlanWriteWpa:: ssid=")); 
-	Serial.print(ssid);
-	Serial.print(F(", pass=")); 
-	Serial.print(pass); 
-	Serial.println();
+	if ( debug >=0 ) && ( pdebug & P_MAIN )) {
+		Serial.print(F("WlanWriteWpa:: ssid=")); 
+		Serial.print(ssid);
+		Serial.print(F(", pass=")); 
+		Serial.print(pass); 
+		Serial.println();
+	}
 #endif
 	// Version 3.3 use of config file
 	String s((char *) ssid);
@@ -550,7 +549,7 @@ int WlanConnect(int maxTry) {
 		Serial.print(j); 
 		Serial.print(F(". WiFi connect SSID=")); 
 		Serial.print(ssid);
-		if (debug>=1) {
+		if (( debug>=1 ) && ( pdebug & P_MAIN )) {
 			Serial.print(F(", pass="));
 			Serial.print(password);
 		}
@@ -576,7 +575,8 @@ int WlanConnect(int maxTry) {
 			agains++;
 			delay(agains*500);
 #if DUSB>=1
-			if (debug>=0) Serial.print(".");
+			if (( debug>=0 ) && ( pdebug & P_MAIN ))
+				Serial.print(".");
 #endif
 		}
 		
@@ -584,14 +584,15 @@ int WlanConnect(int maxTry) {
 		switch (WiFi.status()) {
 			case WL_CONNECTED:
 #if DUSB>=1
-				if (debug>=0)
+				if (( debug>=0 ) && ( pdebug & P_MAIN ))
 					Serial.println(F("WlanConnect:: CONNECTED"));				// 3
 #endif
 				return(1);
 				break;
 			case WL_IDLE_STATUS:
 #if DUSB>=1
-				Serial.println(F("WlanConnect:: IDLE"));						// 0
+				if (( debug>=0 ) && ( pdebug & P_MAIN ))
+					Serial.println(F("WlanConnect:: IDLE"));						// 0
 #endif
 				break;
 			case WL_NO_SSID_AVAIL:
@@ -601,28 +602,34 @@ int WlanConnect(int maxTry) {
 				break;
 			case WL_CONNECT_FAILED:
 #if DUSB>=1
-				Serial.println(F("WlanConnect:: FAILED"));						// 4
+				if (( debug>=0 ) && ( pdebug & P_MAIN ))
+					Serial.println(F("WlanConnect:: FAILED"));						// 4
 #endif
 				break;
 			case WL_DISCONNECTED:
 #if DUSB>=1
-				Serial.println(F("WlanConnect:: DISCONNECTED"));				// 6
+				if (( debug>=0 ) && ( pdebug & P_MAIN ))
+					Serial.println(F("WlanConnect:: DISCONNECTED"));				// 6
 #endif				
 				break;
 			case WL_SCAN_COMPLETED:
 #if DUSB>=1
-				Serial.println(F("WlanConnect:: SCAN COMPLETE"));				// 2
+				if (( debug>=0 ) && ( pdebug & P_MAIN ))
+					Serial.println(F("WlanConnect:: SCAN COMPLETE"));				// 2
 #endif
 				break;
 			case WL_CONNECTION_LOST:
 #if DUSB>=1
-				Serial.println(F("WlanConnect:: LOST"));						// 5
+				if (( debug>=0 ) && ( pdebug & P_MAIN ))
+					Serial.println(F("WlanConnect:: LOST"));						// 5
 #endif
 				break;
 			default:
 #if DUSB>=1
-				Serial.print(F("WlanConnect:: code="));
-				Serial.println(WiFi.status());
+				if (( debug>=0 ) && ( pdebug & P_MAIN )) {
+					Serial.print(F("WlanConnect:: code="));
+					Serial.println(WiFi.status());
+				}
 #endif
 				break;
 		}
@@ -666,7 +673,7 @@ int WlanConnect(int maxTry) {
 		WlanWriteWpa((char *)sta_conf.ssid, (char *)sta_conf.password);
 #else
 #if DUSB>=1
-		if (debug>=0) {
+		if (( debug>=0) && ( pdebug & P_MAIN )) {
 			Serial.println(F("WlanConnect:: Not connected after all"));
 			Serial.print(F("WLAN retry="));
 			Serial.print(i);
@@ -1442,7 +1449,7 @@ void loop ()
 
 	
 	// After a quiet period, make sure we reinit the modem and state machine.
-	// The interval is in seconds (about 10 seconds) as this re-init
+	// The interval is in seconds (about 15 seconds) as this re-init
 	// is a heavy operation. 
 	// SO it will kick in if there are not many messages for the gatway.
 	// Note: Be carefull that it does not happen too often in normal operation.
@@ -1452,7 +1459,7 @@ void loop ()
 	{
 #if DUSB>=1
 		if (( debug>=1 ) && ( pdebug & P_MAIN )) {
-			Serial.print("REINIT: ");
+			Serial.print("REINIT:: ");
 			Serial.print( _MSG_INTERVAL );
 			Serial.print(F(" "));
 			SerialStat(0);
@@ -1544,14 +1551,14 @@ void loop ()
     if ((nowSeconds - statTime) >= _STAT_INTERVAL) {	// Wake up every xx seconds
 #if DUSB>=1
 		if (( debug>=1 ) && ( pdebug & P_MAIN )) {
-			Serial.print(F("STAT <"));
+			Serial.print(F("STAT:: ..."));
 			Serial.flush();
 		}
 #endif
         sendstat();										// Show the status message and send to server
 #if DUSB>=1
-		if (( debug>=2 ) && ( pdebug & P_MAIN )) {
-			Serial.println(F(">"));
+		if (( debug>=1 ) && ( pdebug & P_MAIN )) {
+			Serial.println(F("done"));
 			if (debug>=2) Serial.flush();
 		}
 #endif	
@@ -1587,7 +1594,7 @@ void loop ()
 	nowSeconds = now();
     if ((nowSeconds - pulltime) >= _PULL_INTERVAL) {	// Wake up every xx seconds
 #if DUSB>=1
-		if (debug>=2) {
+		if (( debug>=2) && ( pdebug & P_MAIN )) {
 			Serial.print(F("PULL <"));
 			if (debug>=1) Serial.flush();
 		}

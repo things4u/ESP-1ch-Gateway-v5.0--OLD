@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.1.0 H
-// Date: 2018-05-03
+// Version 5.1.1 H
+// Date: 2018-05-17
 //
 // Based on work done by Thomas Telkamp for Raspberry PI 1ch gateway and many others.
 // Contibutions of Dorijan Morelj and Andreas Spies for OLED support.
@@ -19,7 +19,7 @@
 //
 // ----------------------------------------------------------------------------------------
 
-#define VERSION "V.5.1.0.H; 180503a"
+#define VERSION "V.5.1.1.H; 180517a"
 
 // This value of DEBUG determines whether some parts of code get compiled.
 // Also this is the initial value of debug parameter. 
@@ -29,13 +29,14 @@
 
 // Debug message will be put on Serial is this one is set.
 // If set to 0, not USB Serial prints are done
-// Set to 1 it will prin all user level messages (with correct debug set)
+// Set to 1 it will prinr all user level messages (with correct debug set)
 // If set to 2 it will also print interrupt messages (not recommended)
 #define DUSB 1
 
 // Define whether we should do a formatting of SPIFFS when starting the gateway
 // This is usually a good idea if the webserver is interrupted halfway a writing
 // operation.
+// Normally, value 1 is a good default.
 #define SPIFF_FORMAT 0
 
 // The spreading factor is the most important parameter to set for a single channel
@@ -60,8 +61,8 @@
 // A_SERVER determines whether or not the admin webpage is included in the sketch.
 // Normally, leave it in!
 #define A_SERVER 1				// Define local WebServer only if this define is set
-#define A_REFRESH 1				// Will the webserver refresh or not?
-#define A_SERVERPORT 80			// local webserver port
+#define A_REFRESH 1				// Allow the webserver refresh or not?
+#define A_SERVERPORT 80			// Local webserver port (normally 80)
 #define A_MAXBUFSIZE 192		// Must be larger than 128, but small enough to work
 
 // Definitions for over the air updates. At the moment we support OTA with IDE
@@ -84,6 +85,7 @@
 // 0= No statistics
 // 1= Keep track of messages statistics, number determined by MAX_STAT
 // 2= Option 1 + Keep track of messages received PER each SF (default)
+// 3= See Option 2, but with extra channel info (Do not use when no Hopping is done)
 #define STATISTICS 3
 
 // Maximum number of statistics records gathered. 20 is a good maximum (memory intensive)
@@ -128,7 +130,7 @@
 #define MUTEX 0
 
 // Define if OLED Display is connected to I2C bus. Note that defining an OLED display does not
-// impact perfoamce very much, certainly if no OLED is connected. Wrong OLED will not show
+// impact performance very much, certainly if no OLED is connected. Wrong OLED will not show
 // sensible results on display
 // OLED==0; No OLED display connected
 // OLED==1; 0.9 Oled Screen based on SSD1306
@@ -155,6 +157,7 @@
 //
 #define STAT_LOG 1
 
+
 // Name of he configfile in SPIFFs	filesystem
 // In this file we store the configuration and other relevant info that should
 // survive a reboot of the gateway		
@@ -180,28 +183,29 @@
 // If not, make sure that you do not defined these, which will save CPU time
 // Port is UDP port in this program
 //
-// Default for testing: Switch off
+// Default for testing: Switched off
 #define _THINGPORT 57084					// dash.westenberg.org:8057
 #define _THINGSERVER "westenberg.org"		// Server URL of the LoRa-udp.js handler
 
 // Gateway Ident definitions
-#define _DESCRIPTION "ESP Gateway"
-#define _EMAIL "mw12554@hotmail.com"
+#define _DESCRIPTION "ESP Gateway"			// Name of the gateway
+#define _EMAIL "mw12554@hotmail.com"		// Owner
 #define _PLATFORM "ESP8266"
-#define _LAT 52
-#define _LON 5.9
-#define _ALT 1
+#define _LAT 52.237367
+#define _LON 5.978654
+#define _ALT 14								// Altitude
 
 // ntp
+// Please add daylight saving time to NTP_TIMEZONES when desired
 #define NTP_TIMESERVER "nl.pool.ntp.org"	// Country and region specific
-#define NTP_TIMEZONES	1					// How far is our Timezone from UTC (excl daylight saving/summer time)
+#define NTP_TIMEZONES	2					// How far is our Timezone from UTC (excl daylight saving/summer time)
 #define SECS_IN_HOUR	3600
 #define NTP_INTR 0							// Do NTP processing with interrupts or in loop();
 
 #if GATEWAYNODE==1
-#define _DEVADDR { 0x26, 0x01, 0x00, 0x00 }
-#define _APPSKEY { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
-#define _NWKSKEY { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
+#define _DEVADDR { 0x26, 0x01, 0x15, 0x3D }
+#define _APPSKEY { 0x02, 0x02, 0x04, 0x20, 0x00, 0x00, 0x00, 0x00, 0x54, 0x68, 0x69, 0x6E, 0x67, 0x73, 0x34, 0x55 }
+#define _NWKSKEY { 0x54, 0x68, 0x69, 0x6E, 0x67, 0x73, 0x34, 0x55, 0x54, 0x68, 0x69, 0x6E, 0x67, 0x73, 0x34, 0x55 }
 #define _SENSOR_INTERVAL 300
 #endif
 
@@ -261,8 +265,13 @@ struct wpas {
 //
 wpas wpa[] = {
 	{ "" , "" },							// Reserved for WiFi Manager
-	{ "aap", "noot" },
-	{ "mies", "teun" }
+	{ "platenspeler", "maanlama@16" },
+//	{ "bushhouse", "bush1967" },
+//	{ "Maarten-in", "apeldoorn47" },
+//	{ "Livebox-0e0d", "E2D92F37634C512F712E3DCC1E"},
+//	{ "GLGK_Public","draadloosinternet" },
+	{ "UPC0207874","XBQBUXTU" },
+	{ "OnePlus2", "maanlama@16" }
 };
 
 // For asserting and testing the following defines are used.
