@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.1.1
-// Date: 2018-05-17
+// Version 5.2.0
+// Date: 2018-05-30
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many other contributors.
@@ -45,8 +45,8 @@
 // How long will it take when hopping before a CDONE or CDETD value
 // is present and can be measured.
 //
-#define EVENT_WAIT 20000						// XXX 180520 was 25 milliseconds before CDDETD timeout
-#define DONE_WAIT 1000							// 500 microseconds (1/2000) sec between CDDONE events
+#define EVENT_WAIT 15000						// XXX 180520 was 25 milliseconds before CDDETD timeout
+#define DONE_WAIT 1950							// 2000 microseconds (1/500) sec between CDDONE events
 
 
 // Our code should correct the server Tramission delay settings
@@ -100,6 +100,7 @@ unsigned long hopTime=0;
 unsigned long detTime=0;
 
 #if _PIN_OUT==1
+// ----------------------------------------------------------------------------
 // Definition of the GPIO pins used by the Gateway for Hallard type boards
 //
 struct pins {
@@ -112,17 +113,22 @@ struct pins {
 	// MOSI 13 / D7
 	// CLK  14 / D5
 } pins;
+
 #elif _PIN_OUT==2
+// ----------------------------------------------------------------------------
 // For ComResult gateway PCB use the following settings
 struct pins {
 	uint8_t dio0=5;		// GPIO5 / D1. Dio0 used for one frequency and one SF
 	uint8_t dio1=4;		// GPIO4 / D2. Used for CAD, may or not be shared with DIO0
 	uint8_t dio2=0;		// GPIO0 / D3. Used for frequency hopping, don't care
 	uint8_t ss=15;		// GPIO15 / D8. Select pin connected to GPIO15
-	uint8_t rst=0;		// GPIO0 / D3. Reset pin not used	
+	uint8_t rst=0;		// GPIO0  / D3. Reset pin not used	
 } pins;
+
+
 #elif _PIN_OUT==3
-// For ESP32 based board
+// ----------------------------------------------------------------------------
+// For ESP32/Wemos based board
 // SCK  == GPIO5/ PIN5
 // SS   == GPIO18/PIN18
 // MISO == GPIO19/ PIN19
@@ -131,16 +137,41 @@ struct pins {
 struct pins {
 	uint8_t dio0=26;		// GPIO26 / Dio0 used for one frequency and one SF
 	uint8_t dio1=26;		// GPIO26 / Used for CAD, may or not be shared with DIO0
-	uint8_t dio2=26;		// GPI26 / Used for frequency hopping, don't care
-	uint8_t ss=18;		// GPIO18 / Dx. Select pin connected to GPIO18
-	uint8_t rst=14;		// GPIO0 / D3. Reset pin not used	
+	uint8_t dio2=26;		// GPI2O6 / Used for frequency hopping, don't care
+	uint8_t ss=18;			// GPIO18 / Dx. Select pin connected to GPIO18
+	uint8_t rst=14;			// GPIO0  / D3. Reset pin not used	
 } pins;
+
+
+#elif _PIN_OUT==4
+// ----------------------------------------------------------------------------
+// For ESP32/TTGO based board
+// SCK  == GPIO5/ PIN5
+// SS   == GPIO18/PIN18 CS
+// MISO == GPIO19/ PIN19
+// MOSI == GPIO27/ PIN27
+// RST  == GPIO14/ PIN14
+struct pins {
+	uint8_t dio0=26;		// GPIO26 / Dio0 used for one frequency and one SF
+	uint8_t dio1=33;		// GPIO26 / Used for CAD, may or not be shared with DIO0
+	uint8_t dio2=32;		// GPIO26 / Used for frequency hopping, don't care
+	uint8_t ss=18;			// GPIO18 / Dx. Select pin connected to GPIO18
+	uint8_t rst=14;			// GPIO0 / D3. Reset pin not used	
+} pins;
+#define SCK 5
+#define MISO 19
+#define MOSI 27
+#define RST 14
+#define SS 18
+
+
 #else
-	// Use your own pin definitions, and comment #error line below
-	// MISO 12 / D6
-	// MOSI 13 / D7
-	// CLK  14 / D5
-	// SS   16 / D0
+// ----------------------------------------------------------------------------
+// Use your own pin definitions, and comment #error line below
+// MISO 12 / D6
+// MOSI 13 / D7
+// CLK  14 / D5
+// SS   16 / D0
 #error "Pin Definitions _PIN_OUT must be 1(HALLARD) or 2 (COMRESULT)"
 #endif
 

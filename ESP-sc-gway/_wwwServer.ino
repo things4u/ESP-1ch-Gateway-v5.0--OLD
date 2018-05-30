@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.1.1
-// Date: 2018-05-17
+// Version 5.2.0
+// Date: 2018-05-30
 //
 // 	based on work done by many people and making use of several libraries.
 //
@@ -60,6 +60,21 @@ static void printIP(IPAddress ipa, const char sep, String& response)
 // ================================================================================
 // WEBSERVER FUNCTIONS 
 // ================================================================================
+
+
+// ----------------------------------------------------------------------------
+// Used by all functions requiring user confirmation
+// Displays a menu by user and two buttons "YES" and "CANCEL"
+// The function returns true for YES and false for CANCEL
+// ----------------------------------------------------------------------------
+boolean YesNo(String s)
+{
+	boolean ret = false;
+	//Serial.println(F("Renew Web Page"));
+	//sendWebPage("","");
+	return(ret);
+}
+
 
 // ----------------------------------------------------------------------------
 // WWWFILES
@@ -348,7 +363,7 @@ static void openWebPage()
 
 
 // ----------------------------------------------------------------------------
-// CONFIG DATA
+// CONFIG AND SETTINGS DATA
 //
 //
 // ----------------------------------------------------------------------------
@@ -849,11 +864,14 @@ static void systemData()
 	
 
 	response +="<tr><td class=\"cell\">Free heap</td><td class=\"cell\">"; response+=ESP.getFreeHeap(); response+="</tr>";
+// XXX We Shoudl find an ESP32 alternative
+#if !defined ESP32_ARCH
 	response +="<tr><td class=\"cell\">ESP speed</td><td class=\"cell\">"; response+=ESP.getCpuFreqMHz(); 
 		response +="<td style=\"border: 1px solid black; width:40px;\"><a href=\"SPEED=80\"><button>80</button></a></td>";
 		response +="<td style=\"border: 1px solid black; width:40px;\"><a href=\"SPEED=160\"><button>160</button></a></td>";
 		response+="</tr>";
 	response +="<tr><td class=\"cell\">ESP Chip ID</td><td class=\"cell\">"; response+=ESP.getChipId(); response+="</tr>";
+#endif
 	response +="<tr><td class=\"cell\">OLED</td><td class=\"cell\">"; response+=OLED; response+="</tr>";
 		
 #if STATISTICS>=1
@@ -881,7 +899,11 @@ static void wifiData()
 	response +="<tr><th class=\"thead\">Parameter</th><th class=\"thead\">Value</th></tr>";
 	
 	response +="<tr><td class=\"cell\">WiFi host</td><td class=\"cell\">"; 
+#if ESP32_ARCH==1
+	response +=WiFi.getHostname(); response+="</tr>";
+#else
 	response +=wifi_station_get_hostname(); response+="</tr>";
+#endif
 
 	response +="<tr><td class=\"cell\">WiFi SSID</td><td class=\"cell\">"; 
 	response +=WiFi.SSID(); response+="</tr>";
@@ -944,18 +966,6 @@ void sendWebPage(const char *cmd, const char *arg)
 	server.client().stop();
 }
 
-// ----------------------------------------------------------------------------
-// Used by timeout functions
-// This function only displays the standard homepage
-//	Note: This function is not actively used, as the page is renewed 
-//	by using a HTML meta setting of 60 seconds
-// ----------------------------------------------------------------------------
-static void renewWebPage()
-{
-	//Serial.println(F("Renew Web Page"));
-	//sendWebPage("","");
-	//return;
-}
 
 // ----------------------------------------------------------------------------
 // SetupWWW function called by main setup() program to setup webserver
@@ -1234,7 +1244,8 @@ void setupWWW()
 		server.sendHeader("Location", String("/"), true);
 		server.send ( 302, "text/plain", "");
 	});
-	
+
+#if !defined ESP32_ARCH
 	// Change speed to 160 MHz
 	server.on("/SPEED=80", []() {
 		system_update_cpu_freq(80);
@@ -1246,7 +1257,7 @@ void setupWWW()
 		server.sendHeader("Location", String("/"), true);
 		server.send ( 302, "text/plain", "");
 	});
-
+#endif
 	// Display Statistics
 	server.on("/STAT", []() {
 		server.sendHeader("Location", String("/"), true);

@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.1.1
-// Date: 2018-05-17
+// Version 5.2.0
+// Date: 2018-05-30
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -181,7 +181,7 @@ void setRate(uint8_t sf, uint8_t crc)
 	uint8_t mc1=0, mc2=0, mc3=0;
 #if DUSB>=2
 	if ((sf<SF7) || (sf>SF12)) {
-		if (debug>=1) {
+		if (( debug>=1 ) && ( pdebug & P_RADIO )) {
 			Serial.print(F("setRate:: SF="));
 			Serial.println(sf);
 		}
@@ -342,7 +342,6 @@ void hop() {
 	writeRegister(REG_PADAC_SX1276,  0x84); 					// set 0x4D (PADAC) to 0x84
 	//writeRegister(REG_PADAC, readRegister(REG_PADAC) | 0x4);
 	
-	
 	// 8. Reset interrupt Mask, enable all interrupts
 	writeRegister(REG_IRQ_FLAGS_MASK, 0x00);
 		
@@ -353,19 +352,15 @@ void hop() {
 	// the hop function until printed below
 	//
 #if DUSB>=1
-	if (debug>=2) {
-			Serial.print(F("hop:: freq="));
-			Serial.print(ifreq);
-			Serial.print(F(", sf="));
-			Serial.print(sf);
-			Serial.print(F(", tim="));
+	if (( debug>=2 ) && ( pdebug & P_RADIO )){
+			Serial.print(F("hopTime:: "));
 			Serial.print(micros() - hopTime);
-			Serial.println();
+			Serial.print(F(", "));
+			SerialStat(0);
 	}
 #endif
 	// Remember the last time we hop
 	hopTime = micros();									// At what time did we hop
-
 }
 	
 
@@ -466,7 +461,8 @@ uint8_t receivePkt(uint8_t *payload)
 
 		writeRegister(REG_IRQ_FLAGS, (uint8_t) 0xFF);		// Reset ALL interrupts
 #if DUSB>=1
-		if (( debug>=0 ) && ( pdebug & P_RADIO )){
+//		if (( debug>=0 ) && ( pdebug & P_RADIO )){
+		if (( debug>=0 ) ){
 		
 			Serial.print(F("rxPkt:: t="));
 			SerialTime();
@@ -848,12 +844,23 @@ void cadScanner()
 void initLoraModem()
 {
 	_state = S_INIT;
+#if ESP32_ARCH==1
+	digitalWrite(pins.rst, LOW);
+	delayMicroseconds(10000);
+    digitalWrite(pins.rst, HIGH);
+	delayMicroseconds(10000);
+	digitalWrite(pins.ss, HIGH);
+#if DUSB>=1
+
+#endif
+
+#else
 	// Reset the transceiver chip with a pulse of 10 mSec
 	digitalWrite(pins.rst, HIGH);
 	delayMicroseconds(10000);
     digitalWrite(pins.rst, LOW);
 	delayMicroseconds(10000);
-	
+#endif
 	// 2. Set radio to sleep
 	opmode(OPMODE_SLEEP);										// set register 0x01 to 0x00
 
@@ -870,7 +877,9 @@ void initLoraModem()
 	
 	// Low Noise Amplifier used in receiver
     writeRegister(REG_LNA, (uint8_t) LNA_MAX_GAIN);  			// 0x0C, 0x23
-	
+#if _PIN_OUT==4
+	delay(1);
+#endif
     uint8_t version = readRegister(REG_VERSION);				// Read the LoRa chip version id
     if (version == 0x22) {
         // sx1272
@@ -879,6 +888,7 @@ void initLoraModem()
 #endif
         sx1272 = true;
     } 
+	
 	else if (version == 0x12) {
         // sx1276?
 #if DUSB>=2
@@ -886,7 +896,7 @@ void initLoraModem()
 				Serial.println(F("SX1276 starting"));
 #endif
             sx1272 = false;
-	} 
+	}
 	else {
 		// Normally this means that we connected the wrong type of board and
 		// therefore specified the wrong type of wiring/pins to the software
@@ -894,7 +904,14 @@ void initLoraModem()
 		// boards. (Comresult or Hallard or ...)
 #if DUSB>=1
 		Serial.print(F("Unknown transceiver="));
-		Serial.println(version,HEX);
+		Serial.print(version,HEX);
+		Serial.print(F(", pins.rst =")); Serial.print(pins.rst);
+		Serial.print(F(", pins.ss  =")); Serial.print(pins.ss);
+		Serial.print(F(", pins.dio0 =")); Serial.print(pins.dio0);
+		Serial.print(F(", pins.dio1 =")); Serial.print(pins.dio1);
+		Serial.print(F(", pins.dio2 =")); Serial.print(pins.dio2);
+		Serial.println();
+		Serial.flush();
 #endif
 		die("");												// Maybe first try another kind of receiver
     }

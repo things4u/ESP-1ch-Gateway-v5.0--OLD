@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.1.1
-// Date: 2018-05-25
+// Version 5.2.0
+// Date: 2018-05-30
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -90,6 +90,7 @@ void stateMachine()
 	//
 	if ((_hop) && (intr == 0x00) )
 	{
+		// eventWait is the time since we have had a CDDETD event (preamble detected)
 		// If we are not in scanning state, and there will be an interrupt coming,
 		// In state S_RX it could be RXDONE in which case allow kernel time
 		//
@@ -100,19 +101,22 @@ void stateMachine()
 			uint32_t eventWait = EVENT_WAIT;
 			switch (_state) {
 				case S_INIT:	eventWait = 0; break;
+				// Next two are most important
 				case S_SCAN:	eventWait = EVENT_WAIT * 1; break;
 				case S_CAD:		eventWait = EVENT_WAIT * 1; break;
+				
 				case S_RX:		eventWait = EVENT_WAIT * 8; break;
 				case S_TX:		eventWait = EVENT_WAIT * 1; break;
 				case S_TXDONE:	eventWait = EVENT_WAIT * 4; break;
 				default:
 					eventWait=0;
 #if DUSB>=1
-					Serial.print(F("DEF  :: "));
+					Serial.print(F("DEFAULT :: "));
 					SerialStat(intr);
 #endif
 			}
-			//
+			
+			// doneWait is the time that we received CDDONE interrupt
 			// So we init the wait time for RXDONE based on the current SF.
 			// As for highter CF it takes longer to receive symbols
 			// Assume symbols in SF8 take twice the time of SF7
@@ -140,15 +144,15 @@ void stateMachine()
 			if (eventTime > micros())	eventTime=micros();
 			if (doneTime > micros())	doneTime=micros();
 
-			if ((micros() - doneTime) > doneWait ) 
+			if (((micros() - doneTime) > doneWait ) &&
+				(( _state == S_SCAN ) || ( _state == S_CAD )))
 			{
 				_state = S_SCAN;
 				hop();								// increment ifreq = (ifreq + 1) % NUM_HOPS ;
 				cadScanner();						// Reset to initial SF, leave frequency "freqs[ifreq]"
-				//rxLoraModem();
 #if DUSB>=1
 				if (( debug >= 1 ) && ( pdebug & P_PRE )) {
-					Serial.print(F("DONE::  "));
+					Serial.print(F("DONE  :: "));
 					SerialStat(intr);
 				}
 #endif
@@ -200,8 +204,7 @@ void stateMachine()
 		
 	}// intr==0 && _hop
 
-
-	doneTime = micros();						// We need CDDONE or other intr to reset timeout
+	
 
 	// ================================================================
 	// This is the actual state machine of the gateway
@@ -294,11 +297,7 @@ void stateMachine()
 
 #if DUSB>=1
 			if (( debug>=2 ) && ( pdebug & P_SCAN )) {
-				Serial.print(F("SCAN:: f="));
-				Serial.print(ifreq);
-				Serial.print(F(", sf="));
-				Serial.print(sf);
-				Serial.print(F("CDDONE: "));
+				Serial.print(F("SCAN:: CDDONE: "));
 				SerialStat(intr);
 			}
 #endif
@@ -313,7 +312,7 @@ void stateMachine()
 			{
 #if DUSB>=1
 				if (( debug>=2 ) && ( pdebug & P_SCAN )) {
-					Serial.println(F("SCAN:: -> CAD: "));
+					Serial.print(F("SCAN:: -> CAD: "));
 					SerialStat(intr);
 				}
 #endif
@@ -339,7 +338,8 @@ void stateMachine()
 			// Clear the CADDONE flag
 			writeRegister(REG_IRQ_FLAGS_MASK, (uint8_t) 0x00);
 			writeRegister(REG_IRQ_FLAGS, (uint8_t) 0xFF);
-			
+			doneTime = micros();						// We need CDDONE or other intr to reset timeout			
+
 		}//SCAN CDDONE 
 		
 		// So if we are here then we are in S_SCAN and the interrupt is not
@@ -433,7 +433,7 @@ void stateMachine()
 
 			detTime = micros();
 #if DUSB>=1
-			if (( debug>=2 ) && ( pdebug & P_CAD )) {
+			if (( debug>=1 ) && ( pdebug & P_CAD )) {
 				Serial.print(F("CAD:: "));
 				SerialStat(intr);
 			}
@@ -493,7 +493,9 @@ void stateMachine()
 				}
 #endif
 			}
-		} //CADDONE
+			doneTime = micros();						// We need CDDONE or other intr to reset timeout
+			
+		} //CAD CDDONE
 
 		// if this interrupt is not CDECT or CDDONE then probably is 0x00
 		// This means _event was set but there was no real interrupt (yet).
@@ -596,7 +598,10 @@ void stateMachine()
 			if((LoraUp.payLength = receivePkt(LoraUp.payLoad)) <= 0) {
 #if DUSB>=1
 				if (( debug>=1 ) && ( pdebug & P_RX )) {
-					Serial.println(F("sMachine:: Error S-RX"));
+					Serial.print(F("sMachine:: Error S-RX: "));
+					Serial.print(F("payLength="));
+					Serial.print(LoraUp.payLength);
+					Serial.println();
 				}
 #endif
 				_event=1;
@@ -712,6 +717,7 @@ void stateMachine()
 			}
 			
 			eventTime=micros();								//There was an event for receive
+			doneTime = micros();							// We need CDDONE or other intr to reset timeout
 			
 		}// RXTOUT
 		

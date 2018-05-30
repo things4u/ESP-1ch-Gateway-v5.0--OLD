@@ -1,6 +1,6 @@
 # Single Channel LoRaWAN Gateway
 
-Version 5.0.8, February 12, 2018  
+Version 5.2.0, May 30, 2018  
 Author: M. Westenberg (mw12554@hotmail.com)  
 Copyright: M. Westenberg (mw12554@hotmail.com)  
 
@@ -16,12 +16,28 @@ Maintained by Maarten Westenberg (mw12554@hotmail.com)
 
 # Release Notes
 
+New features in version 5.2.0 (May 30, 2018)
+- Enable support for ESP32 from TTGO, several code changes where ESP32 differs from ESP8266. 
+OLED is supported but NOT tested. Some hardware specific reporting functions of the WebGUI do not work yet.
+- Include new ESP32WebServer library for support of ESP32
+- Made pin configuration definitions in Gateway.h file, and support in loraModem.h and .ino files.
+
+New features in version 5.1.1 (May 17, 2018)
+- The LOG button in the GUI now opens a txt .CSV file in the browser with loggin details.
+- Improved debugging in WebGUI, not only based on debug level but also on part of the software we want to debug.
+- Clean up of StateMachine
+- Enable filesystem formatting from the GUI
+
+New features in version 5.1.0 (May 03, 2018)
+- Improved debuggin in WebGUI, not only based on debug level but also on part of the software we want to debug.
+- Clean up of StateMachine
+
 New features in version 5.0.9 (Apr 08, 2018)
-- In statistics overview the option is added to specify names for known nodes
+- In statistics overview the option is added to specify names for known nodes (in ESP-sc-gateway.h file)
 - Keep track of the amount of messages per channel (only 3 channels supported).
 - Use the SPIFFS filesystem to provide log statistics of messages. Use the GUI and on the top select log. 
 The log data is displayed in the USB Serial area (for the moment).
-- Remove a lot of the debug==1 and debug==2 messages as they aree not useful.
+- Remove a lot of the debug==1 and debug==2 messages as they are not useful.
 
 New features in version 5.0.8 (Mar 26, 2018)
 - Simplified State machine and removed unnecessary code

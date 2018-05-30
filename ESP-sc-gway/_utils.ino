@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.1.1
-// Date: 2018-05-17
+// Version 5.2.0
+// Date: 2018-05-30
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -127,19 +127,19 @@ void SerialStat(uint8_t intr)
 		//Serial.print(_state);
 		switch (_state) {
 			case S_INIT:
-				Serial.print(F("INIT"));
+				Serial.print(F("INIT "));
 			break;
 			case S_SCAN:
-				Serial.print(F("SCAN"));
+				Serial.print(F("SCAN "));
 			break;
 			case S_CAD:
-				Serial.print(F("CAD "));
+				Serial.print(F("CAD  "));
 			break;
 			case S_RX:
-				Serial.print(F("RX  "));
+				Serial.print(F("RX   "));
 			break;
 			case S_TX:
-				Serial.print(F("TX  "));
+				Serial.print(F("TX   "));
 			break;
 			case S_TXDONE:
 				Serial.print(F("TXDONE"));
@@ -149,6 +149,8 @@ void SerialStat(uint8_t intr)
 		}
 		Serial.print(F(", eT="));
 		Serial.print( micros() - eventTime );
+		Serial.print(F(", dT="));
+		Serial.print( micros() - doneTime );
 		Serial.println();
 	}
 #endif

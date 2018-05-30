@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.1.1
-// Date: 2018-05-17
+// Version 5.2.0
+// Date: 2018-05-30
 // Author: Maarten Westenberg (mw12554@hotmail.com)
 //
 // Based on work done by Thomas Telkamp for Raspberry PI 1-ch gateway and many others.
@@ -26,6 +26,10 @@
 
 #include "ESP-sc-gway.h"						// This file contains configuration of GWay
 
+#if defined (ARDUINO_ARCH_ESP32) || defined(ESP32)
+#define ESP32_ARCH 1
+#endif
+
 #include <Esp.h>								// ESP8266 specific IDE functions
 #include <string.h>
 #include <stdio.h>
@@ -35,64 +39,81 @@
 #include <cstdlib>
 #include <sys/time.h>
 #include <cstring>
-#include <string>								// C++ specifix string functions
+#include <string>								// C++ specific string functions
 
 #include <SPI.h>								// For the RFM95 bus
 #include <TimeLib.h>							// http://playground.arduino.cc/code/time
 #include <DNSServer.h>							// Local DNSserver
 #include <ArduinoJson.h>
-//#include <SimpleTimer.h>
-
-#include <ESP8266WiFi.h>						// Which is specific for ESP8266
-						
-#include "FS.h"
+#include <FS.h>									// ESP8266 Specific
 #include <WiFiUdp.h>
 #include <pins_arduino.h>
-
 #include <gBase64.h>							// https://github.com/adamvr/arduino-base64 (changed the name)
-#include <ESP8266mDNS.h>
-
-extern "C" {
-#include "user_interface.h"
-#include "lwip/err.h"
-#include "lwip/dns.h"
-#include "c_types.h"
-}
-
-#if MUTEX_LIB==1
-#include <mutex.h>								// See lib directory
-#endif
 
 // Local include files
 #include "loraModem.h"
 #include "loraFiles.h"
 #include "oLED.h"
 
+extern "C" {
+#include "lwip/err.h"
+#include "lwip/dns.h"
+}
 
 #if WIFIMANAGER==1
 #include <WiFiManager.h>						// Library for ESP WiFi config through an AP
 #endif
 
-#if A_OTA==1
-#include <ESP8266httpUpdate.h>
-#include <ArduinoOTA.h>
-#endif
-
-#if A_SERVER==1
-#include <ESP8266WebServer.h>
-#endif 
-
 #if GATEWAYNODE==1
 #include "AES-128_V10.h"
 #endif
+
+
+
+#if ESP32_ARCH==1								// IF ESP32
+
+#include "WiFi.h"
+#include <WiFIClient.h>
+#include <ESPmDNS.h>
+#include <SPIFFS.h>
+#if A_SERVER==1
+#include <ESP32WebServer.h>						// Dedicated Webserver for ESP32
+#include <Streaming.h>          				// http://arduiniana.org/libraries/streaming/
+#endif
+
+#else
+
+#include <ESP8266WiFi.h>						// Which is specific for ESP8266
+#include <ESP8266mDNS.h>
+extern "C" {
+#include "user_interface.h"
+#include "c_types.h"
+}
+#if A_OTA==1
+#include <ESP8266httpUpdate.h>
+#include <ArduinoOTA.h>
+#endif//OTA
+#if A_SERVER==1
+#include <ESP8266WebServer.h>
+#include <Streaming.h>          				// http://arduiniana.org/libraries/streaming/
+#endif //A_SERVER
+
+#endif//PIN_OUT>=3
+	
+
+
+
 
 uint8_t debug=1;								// Debug level! 0 is no msgs, 1 normal, 2 extensive
 uint8_t pdebug=0xFF;							// Allow all atterns (departments)
 
 // You can switch webserver off if not necessary but probably better to leave it in.
 #if A_SERVER==1
-#include <Streaming.h>          				// http://arduiniana.org/libraries/streaming/
-  ESP8266WebServer server(A_SERVERPORT);
+#if ESP32_ARCH==1
+	ESP32WebServer server(A_SERVERPORT);
+#else
+	ESP8266WebServer server(A_SERVERPORT);
+#endif
 #endif
 using namespace std;
 
@@ -854,7 +875,7 @@ int readUdp(int packetSize)
 #endif
 			// Only send the PKT_PULL_ACK to the UDP socket that just sent the data!!!
 			Udp.beginPacket(remoteIpNo, remotePortNo);
-			if (Udp.write((char *)buff, 12) != 12) {
+			if (Udp.write((unsigned char *)buff, 12) != 12) {
 #if DUSB>=1
 				if (debug>=0)
 					Serial.println("PKT_PULL_ACK:: Error UDP write");
@@ -978,7 +999,7 @@ int sendUdp(IPAddress server, int port, uint8_t *msg, int length) {
 	yield();
 	
 
-	if (Udp.write((char *)msg, length) != length) {
+	if (Udp.write((unsigned char *)msg, length) != length) {
 #if DUSB>=1
 		Serial.println(F("sendUdp:: Error write"));
 #endif
@@ -1203,7 +1224,14 @@ void setup() {
 	char MAC_char[19];								// XXX Unbelievable
 	MAC_char[18] = 0;
 	
-	
+
+#ifdef ESP32
+	Serial.println(F("ESP32 defined"));
+#endif
+#ifdef ARDUINO_ARCH_ESP32
+	Serial.println(F("ARDUINO_ARCH_ESP32 defined"));
+#endif
+
 	
 	Serial.begin(_BAUDRATE);						// As fast as possible for bus
 	delay(100);
@@ -1219,7 +1247,17 @@ void setup() {
 	}
 #endif	
 #if SPIFF_FORMAT>=1
+#if DUSB>=1
+	if (( debug >= 0 ) && ( pdebug & P_MAIN )) {
+		Serial.println(F("Format Filesystem ... "));
+	}
+#endif
 	SPIFFS.format();								// Normally disabled. Enable only when SPIFFS corrupt
+#if DUSB>=1
+	if (( debug >= 0 ) && ( pdebug & P_MAIN )) {
+		Serial.println(F("Done"));
+	}
+#endif
 #endif
 
 	Serial.print(F("Assert="));
@@ -1253,13 +1291,15 @@ void setup() {
     Serial.print(MAC_char);
 	Serial.print(F(", len="));
 	Serial.println(strlen(MAC_char));
-	
+
 	// We start by connecting to a WiFi network, set hostname
 	char hostname[12];
 	sprintf(hostname, "%s%02x%02x%02x", "esp8266-", MAC_array[3], MAC_array[4], MAC_array[5]);
-
+#if ESP32_ARCH==1
+	WiFi.setHostname( hostname );
+#else
 	wifi_station_set_hostname( hostname );
-	
+#endif	
 	// Setup WiFi UDP connection. Give it some time and retry 50 times..
 	while (WlanConnect(50) < 0) {
 		Serial.print(F("Error Wifi network connect "));
@@ -1268,9 +1308,15 @@ void setup() {
 	}
 	
 	Serial.print(F("Host "));
+#if ESP32_ARCH==1
+	Serial.print(WiFi.getHostname());
+#else
 	Serial.print(wifi_station_get_hostname());
+#endif
 	Serial.print(F(" WiFi Connected to "));
 	Serial.print(WiFi.SSID());
+	Serial.print(F(" on IP="));
+	Serial.print(WiFi.localIP());
 	Serial.println();
 	delay(200);
 	
@@ -1289,8 +1335,12 @@ void setup() {
 	//pinMode(pins.dio2, INPUT);
 
 	// Init the SPI pins
+#if ESP32_ARCH==1
+	SPI.begin(SCK, MISO, MOSI, SS);
+#else
 	SPI.begin();
-	
+#endif
+
 	delay(500);
 	
 	// We choose the Gateway ID to be the Ethernet Address of our Gateway card

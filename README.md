@@ -1,6 +1,6 @@
 # Single Channel LoRaWAN Gateway
 
-Version 5.1.0, May 10, 2018  
+Version 5.2.0, May 30, 2018  
 Author: M. Westenberg (mw12554@hotmail.com)  
 Copyright: M. Westenberg (mw12554@hotmail.com)  
 
@@ -15,7 +15,12 @@ Maintained by Maarten Westenberg (mw12554@hotmail.com)
 
 # Description
 
-This repository contains a proof-of-concept implementation of a single channel LoRaWAN gateway for the ESP8266.
+First of all: PLEASE READ THIS FILE AND THINGS4U.GITBUB.IO it should contain most of the information you need to get going.
+Unfortunately I do not have the time to follow up on all emails, and as most information including pin-outs 
+etc etc are contained on these pages I hope you have the time to read them before posting any questions.
+
+This repository contains a proof-of-concept implementation of a single channel LoRaWAN gateway for the ESP8266. 
+Starting version 5.2 also the ESP32 of TTGO (and others) is supported.
 The software implements a standard LoRa gateway with the following exceptions on changes:
 
 -  This LoRa gateway is not a full gateway but it implements just a one-channel/one frequency gateway. 

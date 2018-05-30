@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.1.1 H
-// Date: 2018-05-17
+// Version 5.2.0 H
+// Date: 2018-05-30
 //
 // Based on work done by Thomas Telkamp for Raspberry PI 1ch gateway and many others.
 // Contibutions of Dorijan Morelj and Andreas Spies for OLED support.
@@ -19,7 +19,7 @@
 //
 // ----------------------------------------------------------------------------------------
 
-#define VERSION "V.5.1.1.H; 180517a"
+#define VERSION "V.5.2.0.H; 180530a"
 
 // This value of DEBUG determines whether some parts of code get compiled.
 // Also this is the initial value of debug parameter. 
@@ -36,7 +36,7 @@
 // Define whether we should do a formatting of SPIFFS when starting the gateway
 // This is usually a good idea if the webserver is interrupted halfway a writing
 // operation.
-// Normally, value 1 is a good default.
+// Normally, value 0 is a good default.
 #define SPIFF_FORMAT 0
 
 // The spreading factor is the most important parameter to set for a single channel
@@ -77,8 +77,9 @@
 // If your pin definitions are different, update the loraModem.h file to reflect these settings.
 //	1: HALLARD
 //	2: COMRESULT pin out
-//	3: ESP32 pin out
-//	4: Other, define your own in loraModem.h
+//	3: ESP32 Wemos pin out
+//	4: ESP32 TTGO pinning
+//	5: Other, define your own in loraModem.h
 #define _PIN_OUT 1
 
 // Gather statistics on sensor and Wifi status
@@ -109,8 +110,8 @@
 
 // Define the name of the accesspoint if the gateway is in accesspoint mode (is
 // getting WiFi SSID and password using WiFiManager)
-#define AP_NAME "ESP8266-Gway-Things4U"
-#define AP_PASSWD "ttnAutoPw"
+#define AP_NAME "YourName"
+#define AP_PASSWD "YourPassword"
 							
 
 // Defines whether the gateway will also report sensor/status value on MQTT
@@ -184,16 +185,16 @@
 // Port is UDP port in this program
 //
 // Default for testing: Switched off
-#define _THINGPORT 57084					// dash.westenberg.org:8057
-#define _THINGSERVER "westenberg.org"		// Server URL of the LoRa-udp.js handler
+#define _THINGPORT <port>					// dash.westenberg.org:8057
+#define _THINGSERVER "<dns.server.com>"		// Server URL of the LoRa-udp.js handler
 
 // Gateway Ident definitions
 #define _DESCRIPTION "ESP Gateway"			// Name of the gateway
 #define _EMAIL "mw12554@hotmail.com"		// Owner
 #define _PLATFORM "ESP8266"
-#define _LAT 52.237367
-#define _LON 5.978654
-#define _ALT 14								// Altitude
+#define _LAT 52.0
+#define _LON 5.0
+#define _ALT 1								// Altitude
 
 // ntp
 // Please add daylight saving time to NTP_TIMEZONES when desired
@@ -203,9 +204,9 @@
 #define NTP_INTR 0							// Do NTP processing with interrupts or in loop();
 
 #if GATEWAYNODE==1
-#define _DEVADDR { 0x26, 0x01, 0x15, 0x3D }
-#define _APPSKEY { 0x02, 0x02, 0x04, 0x20, 0x00, 0x00, 0x00, 0x00, 0x54, 0x68, 0x69, 0x6E, 0x67, 0x73, 0x34, 0x55 }
-#define _NWKSKEY { 0x54, 0x68, 0x69, 0x6E, 0x67, 0x73, 0x34, 0x55, 0x54, 0x68, 0x69, 0x6E, 0x67, 0x73, 0x34, 0x55 }
+#define _DEVADDR { 0x26, 0x01, 0x01, 0x01 }
+#define _APPSKEY { 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
+#define _NWKSKEY { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
 #define _SENSOR_INTERVAL 300
 #endif
 
@@ -265,13 +266,8 @@ struct wpas {
 //
 wpas wpa[] = {
 	{ "" , "" },							// Reserved for WiFi Manager
-	{ "platenspeler", "maanlama@16" },
-//	{ "bushhouse", "bush1967" },
-//	{ "Maarten-in", "apeldoorn47" },
-//	{ "Livebox-0e0d", "E2D92F37634C512F712E3DCC1E"},
-//	{ "GLGK_Public","draadloosinternet" },
-	{ "UPC0207874","XBQBUXTU" },
-	{ "OnePlus2", "maanlama@16" }
+	{ "fire", "water" },
+	{ "ape", "beer" }
 };
 
 // For asserting and testing the following defines are used.
