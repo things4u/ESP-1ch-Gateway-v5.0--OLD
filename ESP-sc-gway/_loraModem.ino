@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.2.0
-// Date: 2018-05-30
+// Version 5.2.1
+// Date: 2018-06-06
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -353,7 +353,7 @@ void hop() {
 	//
 #if DUSB>=1
 	if (( debug>=2 ) && ( pdebug & P_RADIO )){
-			Serial.print(F("hopTime:: "));
+			Serial.print(F("hop:: hopTime:: "));
 			Serial.print(micros() - hopTime);
 			Serial.print(F(", "));
 			SerialStat(0);
@@ -390,7 +390,7 @@ uint8_t receivePkt(uint8_t *payload)
     {
 #if DUSB>=1
         if (( debug>=0) && ( pdebug & P_RADIO )) {
-			Serial.print(F("Err RxPkt:: CRC, ="));
+			Serial.print(F("RxPkt:: Err CRC, ="));
 			SerialTime();
 			Serial.println();
 		}
@@ -409,7 +409,7 @@ uint8_t receivePkt(uint8_t *payload)
     {
 #if DUSB>=1
         if (( debug>=0) && ( pdebug & P_RADIO )) {
-			Serial.println(F("Err RxPkt:: HEADER"));
+			Serial.println(F("RxPkt:: Err HEADER"));
 		}
 #endif
 		// Reset VALID-HEADER flag 0x10
@@ -461,8 +461,7 @@ uint8_t receivePkt(uint8_t *payload)
 
 		writeRegister(REG_IRQ_FLAGS, (uint8_t) 0xFF);		// Reset ALL interrupts
 #if DUSB>=1
-//		if (( debug>=0 ) && ( pdebug & P_RADIO )){
-		if (( debug>=0 ) ){
+		if (( debug>=0 ) && ( pdebug & P_RX )){
 		
 			Serial.print(F("rxPkt:: t="));
 			SerialTime();
@@ -678,7 +677,7 @@ void txLoraModem(uint8_t *payLoad, uint8_t payLength, uint32_t tmst, uint8_t sfT
 	
 	// Reset the IRQ register
 	writeRegister(REG_IRQ_FLAGS_MASK, (uint8_t) 0x00);			// Clear the mask
-	writeRegister(REG_IRQ_FLAGS, (uint8_t) IRQ_LORA_TXDONE_MASK);// set 0x12 to 0x08
+	writeRegister(REG_IRQ_FLAGS, (uint8_t) IRQ_LORA_TXDONE_MASK);// set 0x12 to 0x08, clear TXDONE
 	
 	// 16. Initiate actual transmission of FiFo
 	opmode(OPMODE_TX);											// set 0x01 to 0x03 (actual value becomes 0x83)
@@ -944,6 +943,34 @@ void initLoraModem()
 	// 9. clear all radio IRQ flags
     writeRegister(REG_IRQ_FLAGS, 0xFF);
 }// initLoraModem
+
+
+// ----------------------------------------------------------------------------
+// Void function startReceiver.
+// This function starts the receiver loop of the LoRa service.
+// It starts the LoRa modem with initLoraModem(), and then starts
+// the receiver either in single message (CAD) of in continuous
+// reception (STD).
+// ----------------------------------------------------------------------------
+void startReceiver() {
+	initLoraModem();								// XXX 180326, after adapting this function 
+	if (_cad) {
+#if DUSB>=1
+		if (( debug>=1 ) && ( pdebug & P_MAIN )) {
+			Serial.print(F("PULL:: _state set to S_SCAN"));
+		}
+#endif
+		_state = S_SCAN;
+		sf = SF7;
+		cadScanner();
+	}
+	else {
+		_state = S_RX;
+		rxLoraModem();
+	}
+	writeRegister(REG_IRQ_FLAGS_MASK, (uint8_t) 0x00);
+	writeRegister(REG_IRQ_FLAGS, 0xFF);				// Reset all interrupt flags
+}
 
 
 // ----------------------------------------------------------------------------

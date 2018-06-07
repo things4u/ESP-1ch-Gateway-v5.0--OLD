@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.2.0
-// Date: 2018-05-30
+// Version 5.2.1
+// Date: 2018-06-06
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -227,7 +227,7 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 	int prssi;											// packet rssi
 	
 	char cfreq[12] = {0};								// Character array to hold freq in MHz
-	lastTmst = tmst;									// Following/according to spec
+	//lastTmst = tmst;									// Following/according to spec
 	int buff_index=0;
 	char b64[256];
 	
@@ -547,7 +547,7 @@ int receivePacket()
 		// Take the timestamp as soon as possible, to have accurate reception timestamp
 		// TODO: tmst can jump if micros() overflow.
 		uint32_t tmst = (uint32_t) micros();			// Only microseconds, rollover in 
-		lastTmst = tmst;								// Following/according to spec
+		//lastTmst = tmst;								// Following/according to spec
 		
 		// Handle the physical data read from LoraUp
 		if (LoraUp.payLength > 0) {

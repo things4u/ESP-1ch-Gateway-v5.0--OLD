@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.2.0
-// Date: 2018-05-30
+// Version 5.2.1
+// Date: 2018-06-06
 // Author: Maarten Westenberg (mw12554@hotmail.com)
 //
 // Based on work done by Thomas Telkamp for Raspberry PI 1-ch gateway and many others.
@@ -80,6 +80,10 @@ extern "C" {
 #include <ESP32WebServer.h>						// Dedicated Webserver for ESP32
 #include <Streaming.h>          				// http://arduiniana.org/libraries/streaming/
 #endif
+#if A_OTA==1
+#include <ESP32httpUpdate.h>					// Not yet available
+#include <ArduinoOTA.h>
+#endif//OTA
 
 #else
 
@@ -89,20 +93,17 @@ extern "C" {
 #include "user_interface.h"
 #include "c_types.h"
 }
-#if A_OTA==1
-#include <ESP8266httpUpdate.h>
-#include <ArduinoOTA.h>
-#endif//OTA
 #if A_SERVER==1
 #include <ESP8266WebServer.h>
 #include <Streaming.h>          				// http://arduiniana.org/libraries/streaming/
 #endif //A_SERVER
+#if A_OTA==1
+#include <ESP8266httpUpdate.h>
+#include <ArduinoOTA.h>
+#endif//OTA
 
 #endif//PIN_OUT>=3
 	
-
-
-
 
 uint8_t debug=1;								// Debug level! 0 is no msgs, 1 normal, 2 extensive
 uint8_t pdebug=0xFF;							// Allow all atterns (departments)
@@ -162,10 +163,11 @@ time_t startTime = 0;							// The time in seconds since 1970 that the server st
 												// be aware that UTP time has to succeed for meaningful values.
 												// We use this variable since millis() is reset every 50 days...
 uint32_t eventTime = 0;							// Timing of _event to change value (or not).
+uint32_t sendTime = 0;							// Time that the last message transmitted
 uint32_t doneTime = 0;							// Time to expire when CDDONE takes too long
 uint32_t statTime = 0;							// last time we sent a stat message to server
 uint32_t pulltime = 0;							// last time we sent a pull_data request to server
-uint32_t lastTmst = 0;							// Last activity Timer
+//uint32_t lastTmst = 0;							// Last activity Timer
 
 #if A_SERVER==1
 uint32_t wwwtime = 0;
@@ -321,6 +323,7 @@ void ftoa(float f, char *val, int p) {
 	fval = (int) ((f- ival)*j);					// Make fraction. Has same sign as integer part
 	if (fval<0) fval = -fval;					// So if it is negative make fraction positive again.
 												// sprintf does NOT fit in memory
+	if ((f<0) && (ival == 0)) strcat(val, "-");
 	strcat(val,itoa(ival,b,10));				// Copy integer part first, base 10, null terminated
 	strcat(val,".");							// Copy decimal point
 	
@@ -439,286 +442,14 @@ void setupTime() {
 
 
 // ============================================================================
-// UDP AND WLAN FUNCTIONS
-
-
-// ----------------------------------------------------------------------------
-// config.txt is a text file that contains lines(!) with WPA configuration items
-// Each line contains an KEY vaue pair describing the gateway configuration
-//
-// ----------------------------------------------------------------------------
-int WlanReadWpa() {
-	
-	readConfig( CONFIGFILE, &gwayConfig);
-
-	if (gwayConfig.sf != (uint8_t) 0) sf = (sf_t) gwayConfig.sf;
-	ifreq = gwayConfig.ch;
-	debug = gwayConfig.debug;
-	pdebug = gwayConfig.pdebug;
-	_cad = gwayConfig.cad;
-	_hop = gwayConfig.hop;
-	gwayConfig.boots++;							// Every boot of the system we increase the reset
-	
-#if GATEWAYNODE==1
-	if (gwayConfig.fcnt != (uint8_t) 0) frameCount = gwayConfig.fcnt+10;
-#endif
-	
-#if WIFIMANAGER==1
-	String ssid=gwayConfig.ssid;
-	String pass=gwayConfig.pass;
-
-	char ssidBuf[ssid.length()+1];
-	ssid.toCharArray(ssidBuf,ssid.length()+1);
-	char passBuf[pass.length()+1];
-	pass.toCharArray(passBuf,pass.length()+1);
-	Serial.print(F("WlanReadWpa: ")); Serial.print(ssidBuf); Serial.print(F(", ")); Serial.println(passBuf);
-	
-	strcpy(wpa[0].login, ssidBuf);				// XXX changed from wpa[0][0] = ssidBuf
-	strcpy(wpa[0].passw, passBuf);
-	
-	Serial.print(F("WlanReadWpa: <")); 
-	Serial.print(wpa[0].login); 				// XXX
-	Serial.print(F(">, <")); 
-	Serial.print(wpa[0].passw);
-	Serial.println(F(">"));
-#endif
-
-}
-
-// ----------------------------------------------------------------------------
-// Print the WPA data of last WiFiManager to file
-// ----------------------------------------------------------------------------
-#if WIFIMANAGER==1
-int WlanWriteWpa( char* ssid, char *pass) {
-
-#if DUSB>=1
-	if ( debug >=0 ) && ( pdebug & P_MAIN )) {
-		Serial.print(F("WlanWriteWpa:: ssid=")); 
-		Serial.print(ssid);
-		Serial.print(F(", pass=")); 
-		Serial.print(pass); 
-		Serial.println();
-	}
-#endif
-	// Version 3.3 use of config file
-	String s((char *) ssid);
-	gwayConfig.ssid = s;
-	
-	String p((char *) pass);
-	gwayConfig.pass = p;
-
-#if GATEWAYNODE==1	
-	gwayConfig.fcnt = frameCount;
-#endif
-	gwayConfig.ch = ifreq;
-	gwayConfig.sf = sf;
-	gwayConfig.cad = _cad;
-	gwayConfig.hop = _hop;
-	
-	writeConfig( CONFIGFILE, &gwayConfig);
-	return 1;
-}
-#endif
-
-// ----------------------------------------------------------------------------
-// Function to join the Wifi Network
-//	It is a matter of returning to the main loop() asap and make sure in next loop
-//	the reconnect is done first thing. By default the system will reconnect to the
-// samen SSID as it was connected to before.
-// Parameters:
-//		int maxTry: Number of reties we do:
-//		0: Try forever. Which is normally what we want except for Setup maybe
-//		1: Try once and if unsuccessful return(1);
-//		x: Try x times
-//
-//  Returns:
-//		On failure: Return -1
-//		int number of retries necessary
-//
-//  XXX After a few retries, the ESP8266 should be reset. Note: Switching between 
-//	two SSID's does the trick. Rettrying the same SSID does not.
-// Workaround is found below: Let the ESP8266 forget the SSID
-// ----------------------------------------------------------------------------
-int WlanConnect(int maxTry) {
-  
-#if WIFIMANAGER==1
-	WiFiManager wifiManager;
-#endif
-
-	unsigned char agains = 0;
-	unsigned char wpa_index = (WIFIMANAGER >0 ? 0 : 1);		// Skip over first record for WiFiManager
-	
-	// So try to connect to WLAN as long as we are not connected.
-	// The try parameters tells us how many times we try before giving up
-	int i=0;
-	
-	if (WiFi.status() == WL_CONNECTED) return(1);
-
-	// We try 5 times before giving up on connect
-	while ( (WiFi.status() != WL_CONNECTED) && ( i< maxTry ) )
-	{
-
-	  // We try every SSID in wpa array until success
-	  for (int j=wpa_index; (j< (sizeof(wpa)/sizeof(wpa[0]))) && (WiFi.status() != WL_CONNECTED ); j++)
-	  {
-		// Start with well-known access points in the list
-		char *ssid		= wpa[j].login;
-		char *password	= wpa[j].passw;
-#if DUSB>=1
-		Serial.print(i);
-		Serial.print(':');
-		Serial.print(j); 
-		Serial.print(F(". WiFi connect SSID=")); 
-		Serial.print(ssid);
-		if (( debug>=1 ) && ( pdebug & P_MAIN )) {
-			Serial.print(F(", pass="));
-			Serial.print(password);
-		}
-		Serial.println();
-#endif		
-		// Count the number of times we call WiFi.begin
-		gwayConfig.wifis++;
-
-		//WiFi.disconnect();
-		delay(1000);
-
-		WiFi.persistent(false);
-		WiFi.mode(WIFI_OFF);   // this is a temporary line, to be removed after SDK update to 1.5.4
-		WiFi.mode(WIFI_STA);
-		WiFi.begin(ssid, password);
-		
-		delay(9000);
-		
-		// We increase the time for connect but try the same SSID
-		// We try for 10 times
-		agains=1;
-		while (((WiFi.status()) != WL_CONNECTED) && (agains < 10)) {
-			agains++;
-			delay(agains*500);
-#if DUSB>=1
-			if (( debug>=0 ) && ( pdebug & P_MAIN ))
-				Serial.print(".");
-#endif
-		}
-		
-		// Check the connection status again
-		switch (WiFi.status()) {
-			case WL_CONNECTED:
-#if DUSB>=1
-				if (( debug>=0 ) && ( pdebug & P_MAIN ))
-					Serial.println(F("WlanConnect:: CONNECTED"));				// 3
-#endif
-				return(1);
-				break;
-			case WL_IDLE_STATUS:
-#if DUSB>=1
-				if (( debug>=0 ) && ( pdebug & P_MAIN ))
-					Serial.println(F("WlanConnect:: IDLE"));						// 0
-#endif
-				break;
-			case WL_NO_SSID_AVAIL:
-#if DUSB>=1
-				Serial.println(F("WlanConnect:: NO SSID"));						// 1
-#endif
-				break;
-			case WL_CONNECT_FAILED:
-#if DUSB>=1
-				if (( debug>=0 ) && ( pdebug & P_MAIN ))
-					Serial.println(F("WlanConnect:: FAILED"));						// 4
-#endif
-				break;
-			case WL_DISCONNECTED:
-#if DUSB>=1
-				if (( debug>=0 ) && ( pdebug & P_MAIN ))
-					Serial.println(F("WlanConnect:: DISCONNECTED"));				// 6
-#endif				
-				break;
-			case WL_SCAN_COMPLETED:
-#if DUSB>=1
-				if (( debug>=0 ) && ( pdebug & P_MAIN ))
-					Serial.println(F("WlanConnect:: SCAN COMPLETE"));				// 2
-#endif
-				break;
-			case WL_CONNECTION_LOST:
-#if DUSB>=1
-				if (( debug>=0 ) && ( pdebug & P_MAIN ))
-					Serial.println(F("WlanConnect:: LOST"));						// 5
-#endif
-				break;
-			default:
-#if DUSB>=1
-				if (( debug>=0 ) && ( pdebug & P_MAIN )) {
-					Serial.print(F("WlanConnect:: code="));
-					Serial.println(WiFi.status());
-				}
-#endif
-				break;
-		}
-
-	  } //for
-	  i++;													// Number of times we try to connect
-	} //while
-
-	// It should not be possible to be here while WL_CONNECTed
-	if (WiFi.status() == WL_CONNECTED) {
-#if DUSB>=1
-		if (( debug>=3 ) && ( pdebug & P_MAIN )) {
-			Serial.print(F("WLAN connected"));
-			Serial.println();
-		}
-#endif
-		writeGwayCfg(CONFIGFILE);
-		return(1);
-	}
-	else {
-#if WIFIMANAGER==1
-#if DUSB>=1
-		Serial.println(F("Starting Access Point Mode"));
-		Serial.print(F("Connect Wifi to accesspoint: "));
-		Serial.print(AP_NAME);
-		Serial.print(F(" and connect to IP: 192.168.4.1"));
-		Serial.println();
-#endif
-		wifiManager.autoConnect(AP_NAME, AP_PASSWD );
-		//wifiManager.startConfigPortal(AP_NAME, AP_PASSWD );
-		// At this point, there IS a Wifi Access Point found and connected
-		// We must connect to the local SPIFFS storage to store the access point
-		//String s = WiFi.SSID();
-		//char ssidBuf[s.length()+1];
-		//s.toCharArray(ssidBuf,s.length()+1);
-		// Now look for the password
-		struct station_config sta_conf;
-		wifi_station_get_config(&sta_conf);
-
-		//WlanWriteWpa(ssidBuf, (char *)sta_conf.password);
-		WlanWriteWpa((char *)sta_conf.ssid, (char *)sta_conf.password);
-#else
-#if DUSB>=1
-		if (( debug>=0) && ( pdebug & P_MAIN )) {
-			Serial.println(F("WlanConnect:: Not connected after all"));
-			Serial.print(F("WLAN retry="));
-			Serial.print(i);
-			Serial.print(F(" , stat="));
-			Serial.print(WiFi.status() );						// Status. 3 is WL_CONNECTED
-			Serial.println();
-		}
-#endif // DUSB
-		return(-1);
-#endif
-	}
-
-  
-	yield();
-  
-	return(1);
-}
+// UDP  FUNCTIONS
 
 
 // ----------------------------------------------------------------------------
 // Read DOWN a package from UDP socket, can come from any server
 // Messages are received when server responds to gateway requests from LoRa nodes 
 // (e.g. JOIN requests etc.) or when server has downstream data.
-// We repond only to the server that sent us a message!
+// We respond only to the server that sent us a message!
 // Note: So normally we can forget here about codes that do upstream
 // Parameters:
 //	Packetsize: size of the buffer to read, as read by loop() calling function
@@ -847,10 +578,12 @@ int readUdp(int packetSize)
 				Serial.println(F("PKT_PULL_RESP:: received"));
 			}
 #endif
-			lastTmst = micros();					// Store the tmst this package was received
+//			lastTmst = micros();					// Store the tmst this package was received
 			
 			// Send to the LoRa Node first (timing) and then do messaging
 			_state=S_TX;
+			sendTime = micros();					// record when we started sending the message
+			
 			if (sendPacket(data, packetSize-4) < 0) {
 				return(-1);
 			}
@@ -859,7 +592,7 @@ int readUdp(int packetSize)
 			buff[0]=buff_down[0];
 			buff[1]=buff_down[1];
 			buff[2]=buff_down[2];
-			//buff[3]=PKT_PULL_ACK;				// Pull request/Change of Mogyi
+			//buff[3]=PKT_PULL_ACK;					// Pull request/Change of Mogyi
 			buff[3]=PKT_TX_ACK;
 			buff[4]=MAC_array[0];
 			buff[5]=MAC_array[1];
@@ -871,7 +604,9 @@ int readUdp(int packetSize)
 			buff[11]=MAC_array[5];
 			buff[12]=0;
 #if DUSB>=1
-			Serial.println(F("readUdp:: TX buff filled"));
+			if (( debug >= 2 ) && ( pdebug & P_MAIN )) {
+				Serial.println(F("readUdp:: TX buff filled"));
+			}
 #endif
 			// Only send the PKT_PULL_ACK to the UDP socket that just sent the data!!!
 			Udp.beginPacket(remoteIpNo, remotePortNo);
@@ -1516,6 +1251,7 @@ void loop ()
 		}
 #endif
 
+		// startReveiver() ??
 		if ((_cad) || (_hop)) {
 			_state = S_SCAN;
 			sf = SF7;
@@ -1554,6 +1290,7 @@ void loop ()
 	// XXX 180326
 	if (_event == 1) return;
 	else yield();
+
 	
 	// If we are not connected, try to connect.
 	// We will not read Udp in this loop cycle then
@@ -1592,6 +1329,19 @@ void loop ()
 			}
 		}
 	}
+	
+	// After sending a message with S_TX, we have to receive a TXDONE interrupt
+	// within 7 seconds according to spec, of we have a problem.
+	if ( sendTime > micros() ) sendTime = 0;
+	if (( _state == S_TXDONE ) && (( micros() - sendTime) > 7000000 )) {
+		startReceiver();
+#if DUSB>=1
+		if (( debug >= 1 ) && ( pdebug & P_MAIN )) {
+			Serial.println(F("Main:: reset TX"));
+		}
+#endif
+	}
+	
 	
 	yield();					// XXX 26/12/2017
 
@@ -1650,24 +1400,8 @@ void loop ()
 		}
 #endif
         pullData();										// Send PULL_DATA message to server
-		initLoraModem();								// XXX 180326, after adapting this function 
-		if (_cad) {
-#if DUSB>=1
-			if (( debug>=1 ) && ( pdebug & P_MAIN )) {
-				Serial.print(F("PULL:: _state set to S_SCAN"));
-			}
-#endif
-			_state = S_SCAN;
-			sf = SF7;
-			cadScanner();
-		}
-		else {
-			_state = S_RX;
-			rxLoraModem();
-		}
-		writeRegister(REG_IRQ_FLAGS_MASK, (uint8_t) 0x00);
-		writeRegister(REG_IRQ_FLAGS, 0xFF);				// Reset all interrupt flags
-#if DUSB>=1
+		startReceiver();
+		#if DUSB>=1
 		if (( debug>=1 ) && ( pdebug & P_MAIN )) {
 			Serial.println(F(">"));
 			if (debug>=2) Serial.flush();
