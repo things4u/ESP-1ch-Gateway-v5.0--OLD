@@ -15,7 +15,7 @@ Maintained by Maarten Westenberg (mw12554@hotmail.com)
 
 # Description
 
-First of all: PLEASE READ THIS FILE AND HTTP://THINGS4U.GITBHUB.IO it should contain most of the information you need to get going.
+First of all: PLEASE READ THIS FILE AND HTTP://THINGS4U.GITHUB.IO it should contain most of the information you need to get going.
 Unfortunately I do not have the time to follow up on all emails, and as most information including pin-outs 
 etc etc are contained on these pages I hope you have the time to read them before posting any questions.
 
