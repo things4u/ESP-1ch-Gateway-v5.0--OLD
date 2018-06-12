@@ -958,7 +958,9 @@ void setup() {
 
 	char MAC_char[19];								// XXX Unbelievable
 	MAC_char[18] = 0;
-	
+
+	Serial.begin(_BAUDRATE);						// As fast as possible for bus
+	delay(100);	
 
 #ifdef ESP32
 	Serial.println(F("ESP32 defined"));
@@ -967,9 +969,6 @@ void setup() {
 	Serial.println(F("ARDUINO_ARCH_ESP32 defined"));
 #endif
 
-	
-	Serial.begin(_BAUDRATE);						// As fast as possible for bus
-	delay(100);
 #if DUSB>=1
 	Serial.flush();
 
@@ -1015,7 +1014,10 @@ void setup() {
 		yield();
 	}
 #endif
+
 	WiFi.mode(WIFI_STA);
+	WiFi.begin();
+	
 	WlanReadWpa();								// Read the last Wifi settings from SPIFFS into memory
 
 	WiFi.macAddress(MAC_array);
@@ -1029,18 +1031,22 @@ void setup() {
 
 	// We start by connecting to a WiFi network, set hostname
 	char hostname[12];
-	sprintf(hostname, "%s%02x%02x%02x", "esp8266-", MAC_array[3], MAC_array[4], MAC_array[5]);
-#if ESP32_ARCH==1
-	WiFi.setHostname( hostname );
-#else
-	wifi_station_set_hostname( hostname );
-#endif	
+
 	// Setup WiFi UDP connection. Give it some time and retry 50 times..
 	while (WlanConnect(50) < 0) {
 		Serial.print(F("Error Wifi network connect "));
 		Serial.println();
 		yield();
-	}
+	}	
+	
+#if ESP32_ARCH==1
+	sprintf(hostname, "%s%02x%02x%02x", "esp32-", MAC_array[3], MAC_array[4], MAC_array[5]);
+	WiFi.setHostname( hostname );
+#else
+	sprintf(hostname, "%s%02x%02x%02x", "esp8266-", MAC_array[3], MAC_array[4], MAC_array[5]);
+	wifi_station_set_hostname( hostname );
+#endif	
+
 	
 	Serial.print(F("Host "));
 #if ESP32_ARCH==1
