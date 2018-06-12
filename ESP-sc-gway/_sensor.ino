@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg
-// Verison 5.2.0
-// Date: 2018-05-30
+// Verison 5.2.1
+// Date: 2018-06-06
 //
 // All rights reserved. This program and the accompanying materials
 // are made available under the terms of the MIT License
@@ -408,6 +408,13 @@ int sensorPacket() {
 	uint8_t message[64]={ 0 };							// Payload, init to 0
 	uint8_t mlength = 0;
 	uint32_t tmst = micros();
+	struct LoraUp LUP;
+	
+	// Init the other LoraUp fields
+	LUP.sf = 9;
+	LUP.prssi = -50;
+	LUP.rssicorr = 139;
+	LUP.snr = 0;
 	
 	// In the next few bytes the fake LoRa message must be put
 	// PHYPayload = MHDR | MACPAYLOAD | MIC
@@ -416,38 +423,38 @@ int sensorPacket() {
 	
 	// ------------------------------
 	// MHDR (Para 4.2), bit 5-7 MType, bit 2-4 RFU, bit 0-1 Major
-	message[0] = 0x40;									// MHDR 0x40 == unconfirmed up message,
+	LUP.payLoad[0] = 0x40;								// MHDR 0x40 == unconfirmed up message,
 														// FRU and major are 0
 	
 	// -------------------------------
 	// FHDR consists of 4 bytes addr, 1 byte Fctrl, 2 byte FCnt, 0-15 byte FOpts
 	// We support ABP addresses only for Gateways
-	message[1] = DevAddr[3];							// Last byte[3] of address
-	message[2] = DevAddr[2];
-	message[3] = DevAddr[1];
-	message[4] = DevAddr[0];							// First byte[0] of Dev_Addr
+	LUP.payLoad[1] = DevAddr[3];						// Last byte[3] of address
+	LUP.payLoad[2] = DevAddr[2];
+	LUP.payLoad[3] = DevAddr[1];
+	LUP.payLoad[4] = DevAddr[0];						// First byte[0] of Dev_Addr
 	
-	message[5] = 0x00;									// FCtrl is normally 0
-	message[6] = frameCount % 0x100;					// LSB
-	message[7] = frameCount / 0x100;					// MSB
+	LUP.payLoad[5] = 0x00;								// FCtrl is normally 0
+	LUP.payLoad[6] = frameCount % 0x100;				// LSB
+	LUP.payLoad[7] = frameCount / 0x100;				// MSB
 
 	// -------------------------------
 	// FPort, either 0 or 1 bytes. Must be != 0 for non MAC messages such as user payload
 	//
-	message[8] = 0x01;									// FPort must not be 0
-	mlength = 9;
+	LUP.payLoad[8] = 0x01;								// FPort must not be 0
+	LUP.payLength  = 9;
 	
 	// FRMPayload; Payload will be AES128 encoded using AppSKey
 	// See LoRa spec para 4.3.2
 	// You can add any byte string below based on you personal choice of sensors etc.
 	//
 	// Payload bytes in this example are encoded in the LoRaCode(c) format
-	uint8_t PayLength = LoRaSensors((uint8_t *)(message+mlength));
+	uint8_t PayLength = LoRaSensors((uint8_t *)(LUP.payLoad + LUP.payLength));
 	
 	// we have to include the AES functions at this stage in order to generate LoRa Payload.
-	uint8_t CodeLength = encodePacket((uint8_t *)(message+mlength), PayLength, (uint16_t)frameCount, 0);
+	uint8_t CodeLength = encodePacket((uint8_t *)(LUP.payLoad + LUP.payLength), PayLength, (uint16_t)frameCount, 0);
 
-	mlength += CodeLength;								// length inclusive sensor data
+	LUP.payLength += CodeLength;								// length inclusive sensor data
 	
 	// MIC, Message Integrity Code
 	// As MIC is used by TTN (and others) we have to make sure that
@@ -455,13 +462,13 @@ int sensorPacket() {
 	// Note: Until MIC is done correctly, TTN does not receive these messages
 	//		 The last 4 bytes are MIC bytes.
 	//
-	mlength += micPacket((uint8_t *)(message), mlength, (uint16_t)frameCount, 0);
+	LUP.payLength += micPacket((uint8_t *)(LUP.payLoad), LUP.payLength, (uint16_t)frameCount, 0);
 
 	// So now our package is ready, and we can send it up through the gateway interface
 	// Note Be aware that the sensor message (which is bytes) in message will be
-	// be expanded if the server expacts JSON messages.
+	// be expanded if the server expects JSON messages.
 	//
-	int buff_index = buildPacket(tmst, buff_up, message, mlength, true);
+	int buff_index = buildPacket(tmst, buff_up, LUP, true);
 	
 	frameCount++;
 	
