@@ -135,6 +135,8 @@ void stateMachine()
 						Serial.print(F("PRE:: DEF set"));
 						Serial.println();
 					}
+#else
+					if (debug>=0) Serial.print(' ');
 #endif
 			}
 
