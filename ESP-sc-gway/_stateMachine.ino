@@ -130,14 +130,14 @@ void stateMachine()
 				case SF11:	doneWait *= 16;	break;
 				case SF12:	doneWait *= 32;	break;
 				default:
+					doneWait *= 1;
 #if DUSB>=1
 					if (( debug>=0 ) && ( pdebug & P_PRE )) {
 						Serial.print(F("PRE:: DEF set"));
 						Serial.println();
 					}
-#else
-					if (debug>=0) Serial.print(' ');
 #endif
+					break;
 			}
 
 			// If micros is starting over again after 51 minutes 
@@ -157,6 +157,7 @@ void stateMachine()
 					Serial.print(F("DONE  :: "));
 					SerialStat(intr);
 				}
+
 #endif
 				eventTime=micros();					// reset the timer on timeout
 				doneTime=micros();					// reset the timer on timeout

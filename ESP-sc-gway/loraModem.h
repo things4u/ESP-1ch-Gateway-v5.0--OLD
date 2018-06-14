@@ -101,7 +101,7 @@ unsigned long detTime=0;
 
 #if _PIN_OUT==1
 // ----------------------------------------------------------------------------
-// Definition of the GPIO pins used by the Gateway for Hallard type boards
+// HALLARD Definition of the GPIO pins for Hallard type boards
 //
 struct pins {
 	uint8_t dio0=15;	// GPIO15 / D8. For the Hallard board shared between DIO0/DIO1/DIO2
@@ -116,7 +116,7 @@ struct pins {
 
 #elif _PIN_OUT==2
 // ----------------------------------------------------------------------------
-// For ComResult gateway PCB use the following settings
+// COMRESULT gateway PCB use the following settings
 struct pins {
 	uint8_t dio0=5;		// GPIO5 / D1. Dio0 used for one frequency and one SF
 	uint8_t dio1=4;		// GPIO4 / D2. Used for CAD, may or not be shared with DIO0
@@ -139,13 +139,13 @@ struct pins {
 	uint8_t dio1=26;		// GPIO26 / Used for CAD, may or not be shared with DIO0
 	uint8_t dio2=26;		// GPI2O6 / Used for frequency hopping, don't care
 	uint8_t ss=18;			// GPIO18 / Dx. Select pin connected to GPIO18
-	uint8_t rst=14;			// GPIO0  / D3. Reset pin not used	
+	uint8_t rst=14;			// GPIO14 / D3. Reset pin not used	
 } pins;
 
 
 #elif _PIN_OUT==4
 // ----------------------------------------------------------------------------
-// For ESP32/TTGO based board
+// ESP32/TTGO based board
 // SCK  == GPIO5/ PIN5
 // SS   == GPIO18/PIN18 CS
 // MISO == GPIO19/ PIN19
@@ -153,10 +153,10 @@ struct pins {
 // RST  == GPIO14/ PIN14
 struct pins {
 	uint8_t dio0=26;		// GPIO26 / Dio0 used for one frequency and one SF
-	uint8_t dio1=33;		// GPIO26 / Used for CAD, may or not be shared with DIO0
-	uint8_t dio2=32;		// GPIO26 / Used for frequency hopping, don't care
+	uint8_t dio1=33;		// GPIO33 / Used for CAD, may or not be shared with DIO0
+	uint8_t dio2=32;		// GPIO32 / Used for frequency hopping, don't care
 	uint8_t ss=18;			// GPIO18 / Dx. Select pin connected to GPIO18
-	uint8_t rst=14;			// GPIO0 / D3. Reset pin not used	
+	uint8_t rst=14;			// GPIO14 / D3. Reset pin not used	
 } pins;
 #define SCK 5
 #define MISO 19
@@ -164,6 +164,27 @@ struct pins {
 #define RST 14
 #define SS 18
 
+
+#elif _PIN_OUT==5
+// ----------------------------------------------------------------------------
+// ESP32/TTGO based board, with onboard battery and GPS(!)
+// SCK  == GPIO5/ PIN5
+// SS   == GPIO18/PIN18 CS
+// MISO == GPIO19/ PIN19
+// MOSI == GPIO27/ PIN27
+// RST  == GPIO14/ PIN14
+struct pins {
+	uint8_t dio0=26;		// GPIO26 / Dio0 used for one frequency and one SF
+	uint8_t dio1=33;		// GPIO33 / Used for CAD, not be shared with DIO0, NOT CONNECTED BY DEFAULT
+	uint8_t dio2=32;		// GPIO32 / Used for frequency hopping, don't care
+	uint8_t ss=18;			// GPIO18 / Dx. Select pin connected to GPIO18
+	uint8_t rst=14;			// GPIO14 / D3. Reset pin not used	
+} pins;
+#define SCK 5
+#define MISO 19
+#define MOSI 27
+#define RST 14
+#define SS 18
 
 #else
 // ----------------------------------------------------------------------------
