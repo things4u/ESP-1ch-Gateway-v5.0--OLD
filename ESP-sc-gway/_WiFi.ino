@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.2.1
-// Date: 2018-06-06
+// Version 5.3.1
+// Date: 2018-06-30
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -15,8 +15,109 @@
 //
 // This file contains the LoRa filesystem specific code
 
+// ----------------------------------------------------------------------------
+// WLANSTATUS prints the status of the Wlan.
+// The status of the Wlan "connection" can change if we have no relation
+// with the well known router anymore. Normally this relation is preserved
+// but sometimes we have to reconfirm to the router again and we get the same
+// address too.
+// So, if the router is still in range we can "survive" with the same address
+// and we may have to renew the "connection" from time to time.
+// But when we loose the SSID connection, we may have to look for another router.
+//
+// Parameters: <none>
+// Return value: Returns 1 when still WL_CONNETED, otherwise returns 0
+// ----------------------------------------------------------------------------
+int WlanStatus() {
 
+	switch (WiFi.status()) {
+		case WL_CONNECTED:
+#if DUSB>=1
+			if (debug>=0) {
+				Serial.print(F("WlanCStatus:: CONNECTED to"));				// 3
+				Serial.println(WiFi.SSID());
+			}
+#endif
+			WiFi.setAutoReconnect(true);				// Reconenct to this AP if DISCONNECTED
+			return(1);
+			break;
 
+		// In case we get disconnected from the AP we loose the IP address.
+		// The ESP is configured to reconnect to the last router in memory.
+		case WL_DISCONNECTED:
+#if DUSB>=1
+			if (debug>=0) {
+				Serial.print(F("WlanStatus:: DISCONNECTED, IP="));			// 6
+				Serial.println(WiFi.localIP());
+			}
+#endif
+			//while (! WiFi.isConnected() ) {
+				// Wait
+				delay(1);
+			//}
+			return(0);
+			break;
+
+		// When still pocessing
+		case WL_IDLE_STATUS:
+#if DUSB>=1
+			if (debug>=0)
+				Serial.println(F("WlanStatus:: IDLE"));					// 0
+#endif
+			break;
+		
+		// This code is generated as soonas the AP is out of range
+		// Whene detected, the program will search for a better AP in range
+		case WL_NO_SSID_AVAIL:
+#if DUSB>=1
+			if (debug>=0)
+				Serial.println(F("WlanStatus:: NO SSID"));					// 1
+#endif
+			break;
+			
+		case WL_CONNECT_FAILED:
+#if DUSB>=1
+			if (debug>=0)
+				Serial.println(F("WlanStatus:: FAILED"));					// 4
+#endif
+			break;
+			
+		// Never seen this code
+		case WL_SCAN_COMPLETED:
+#if DUSB>=1
+			if (debug>=0)
+				Serial.println(F("WlanStatus:: SCAN COMPLETE"));			// 2
+#endif
+			break;
+			
+		// Never seen this code
+		case WL_CONNECTION_LOST:
+#if DUSB>=1
+			if (debug>=0)
+				Serial.println(F("WlanStatus:: LOST"));					// 5
+#endif
+			break;
+			
+		// This code is generated for example when WiFi.begin() has not been called
+		// before accessing WiFi functions
+		case WL_NO_SHIELD:
+#if DUSB>=1
+			if (debug>=0)
+				Serial.println(F("WlanStatus:: WL_NO_SHIELD"));				// 
+#endif
+			break;
+			
+			default:
+#if DUSB>=1
+			if (debug>=0) {
+				Serial.print(F("WlanStatus:: code="));
+				Serial.println(WiFi.status());								// 255 means ERROR
+			}
+#endif
+			break;
+	}
+	return(-1);
+}
 
 // ----------------------------------------------------------------------------
 // config.txt is a text file that contains lines(!) with WPA configuration items
@@ -63,13 +164,13 @@ int WlanReadWpa() {
 
 
 // ----------------------------------------------------------------------------
-// Print the WPA data of last WiFiManager to file
+// Print the WPA data of last WiFiManager to the config file
 // ----------------------------------------------------------------------------
 #if WIFIMANAGER==1
 int WlanWriteWpa( char* ssid, char *pass) {
 
 #if DUSB>=1
-	if ( debug >=0 ) && ( pdebug & P_MAIN )) {
+	if (( debug >=0 ) && ( pdebug & P_MAIN )) {
 		Serial.print(F("WlanWriteWpa:: ssid=")); 
 		Serial.print(ssid);
 		Serial.print(F(", pass=")); 
@@ -105,18 +206,22 @@ int WlanWriteWpa( char* ssid, char *pass) {
 //	the reconnect is done first thing. By default the system will reconnect to the
 // samen SSID as it was connected to before.
 // Parameters:
-//		int maxTry: Number of reties we do:
-//		0: Try forever. Which is normally what we want except for Setup maybe
+//		int maxTry: Number of retries we do:
+//		0: Used during Setup first CONNECT
 //		1: Try once and if unsuccessful return(1);
 //		x: Try x times
 //
 //  Returns:
 //		On failure: Return -1
-//		int number of retries necessary
+//		On connect: return 1
+//		On Disconnect state: return 0
 //
 //  XXX After a few retries, the ESP8266 should be reset. Note: Switching between 
 //	two SSID's does the trick. Rettrying the same SSID does not.
-// Workaround is found below: Let the ESP8266 forget the SSID
+//	Workaround is found below: Let the ESP8266 forget the SSID
+//
+//  NOTE: The Serial works only on debug setting and not on pdebug. This is 
+//	because WiFi problems would make webserver (which works on WiFI) useless.
 // ----------------------------------------------------------------------------
 int WlanConnect(int maxTry) {
   
@@ -126,130 +231,98 @@ int WlanConnect(int maxTry) {
 
 	unsigned char agains = 0;
 	unsigned char wpa_index = (WIFIMANAGER >0 ? 0 : 1);		// Skip over first record for WiFiManager
+
+	// The initial setup() call is done with parameter 0
+	// We clear the WiFi memory and start with previous AP.
+	//
+	if (maxTry==0) {
+		Serial.println(F("WlanConnect:: Init para 0"));
+		WiFi.persistent(false);
+		WiFi.mode(WIFI_OFF);   // this is a temporary line, to be removed after SDK update to 1.5.4
+		if (gwayConfig.ssid.length() >0) {
+			WiFi.begin(gwayConfig.ssid.c_str(), gwayConfig.pass.c_str());
+			delay(100);
+		}
+	}
 	
 	// So try to connect to WLAN as long as we are not connected.
 	// The try parameters tells us how many times we try before giving up
+	// Value 0 is reserved for setup() first time connect
 	int i=0;
-	
-	if (WiFi.status() == WL_CONNECTED) return(1);
 
-	// We try 5 times before giving up on connect
-	while ( (WiFi.status() != WL_CONNECTED) && ( i< maxTry ) )
+	while ( (WiFi.status() != WL_CONNECTED) && ( i<= maxTry ) )
 	{
 
-	  // We try every SSID in wpa array until success
-	  for (int j=wpa_index; (j< (sizeof(wpa)/sizeof(wpa[0]))) && (WiFi.status() != WL_CONNECTED ); j++)
-	  {
-		// Start with well-known access points in the list
-		char *ssid		= wpa[j].login;
-		char *password	= wpa[j].passw;
+		// We try every SSID in wpa array until success
+		for (int j=wpa_index; (j< (sizeof(wpa)/sizeof(wpa[0]))) && (WiFi.status() != WL_CONNECTED ); j++)
+		{
+			// Start with well-known access points in the list
+			char *ssid		= wpa[j].login;
+			char *password	= wpa[j].passw;
 #if DUSB>=1
-		Serial.print(i);
-		Serial.print(':');
-		Serial.print(j); 
-		Serial.print(F(". WiFi connect SSID=")); 
-		Serial.print(ssid);
-		if (( debug>=1 ) && ( pdebug & P_MAIN )) {
-			Serial.print(F(", pass="));
-			Serial.print(password);
-		}
-		Serial.println();
+			if (debug>=0)  {
+				Serial.print(i);
+				Serial.print(':');
+				Serial.print(j); 
+				Serial.print(F(". WiFi connect SSID=")); 
+				Serial.print(ssid);
+				if ( debug>=1 ) {
+					Serial.print(F(", pass="));
+					Serial.print(password);
+				}
+				Serial.println();
+			}
 #endif		
-		// Count the number of times we call WiFi.begin
-		gwayConfig.wifis++;
+			// Count the number of times we call WiFi.begin
+			gwayConfig.wifis++;
 
-		//WiFi.disconnect();
-		delay(1000);
 
-		WiFi.persistent(false);
-		WiFi.mode(WIFI_OFF);   // this is a temporary line, to be removed after SDK update to 1.5.4
-		WiFi.mode(WIFI_STA);
-		WiFi.begin(ssid, password);
-		
-		delay(9000);
-		
-		// We increase the time for connect but try the same SSID
-		// We try for 10 times
-		agains=1;
-		while (((WiFi.status()) != WL_CONNECTED) && (agains < 10)) {
-			agains++;
-			delay(agains*500);
-#if DUSB>=1
-			if (( debug>=0 ) && ( pdebug & P_MAIN ))
-				Serial.print(".");
-#endif
-		}
-		
-		// Check the connection status again
-		switch (WiFi.status()) {
-			case WL_CONNECTED:
-#if DUSB>=1
-				if (( debug>=0 ) && ( pdebug & P_MAIN ))
-					Serial.println(F("WlanConnect:: CONNECTED"));				// 3
-#endif
+
+			WiFi.mode(WIFI_STA);
+			delay(1000);
+			WiFi.begin(ssid, password);
+			delay(8000);
+			
+			// Check the connection status again, return values
+			// 1 = CONNECTED
+			// 0 = DISCONNECTED (will reconnect)
+			// -1 = No SSID or other cause			
+			int stat = WlanStatus();
+			if ( stat == 1) {
+				writeGwayCfg(CONFIGFILE);					// XXX Write cnfiguration to SPIFFS
 				return(1);
-				break;
-			case WL_IDLE_STATUS:
+			}
+		
+			// We increase the time for connect but try the same SSID
+			// We try for 10 times
+			agains=1;
+			while (((WiFi.status()) != WL_CONNECTED) && (agains < 10)) {
+				agains++;
+				delay(agains*500);
 #if DUSB>=1
-				if (( debug>=0 ) && ( pdebug & P_MAIN ))
-					Serial.println(F("WlanConnect:: IDLE"));						// 0
-#endif
-				break;
-			case WL_NO_SSID_AVAIL:
-#if DUSB>=1
-				Serial.println(F("WlanConnect:: NO SSID"));						// 1
-#endif
-				break;
-			case WL_CONNECT_FAILED:
-#if DUSB>=1
-				if (( debug>=0 ) && ( pdebug & P_MAIN ))
-					Serial.println(F("WlanConnect:: FAILED"));						// 4
-#endif
-				break;
-			case WL_DISCONNECTED:
-#if DUSB>=1
-				if (( debug>=0 ) && ( pdebug & P_MAIN ))
-					Serial.println(F("WlanConnect:: DISCONNECTED"));				// 6
-#endif				
-				break;
-			case WL_SCAN_COMPLETED:
-#if DUSB>=1
-				if (( debug>=0 ) && ( pdebug & P_MAIN ))
-					Serial.println(F("WlanConnect:: SCAN COMPLETE"));				// 2
-#endif
-				break;
-			case WL_CONNECTION_LOST:
-#if DUSB>=1
-				if (( debug>=0 ) && ( pdebug & P_MAIN ))
-					Serial.println(F("WlanConnect:: LOST"));						// 5
-#endif
-				break;
-			default:
-#if DUSB>=1
-				if (( debug>=0 ) && ( pdebug & P_MAIN )) {
-					Serial.print(F("WlanConnect:: code="));
-					Serial.println(WiFi.status());
+				if ( debug>=0 ) {
+					Serial.print(".");
 				}
 #endif
-				break;
-		}
+			}
+		
+			if ( WiFi.status() == WL_DISCONNECTED) return(0);				// wait
 
-	  } //for
-	  i++;													// Number of times we try to connect
+
+			// Make sure that we can connect to different AP's than 1
+			// this is a patch. Normally we connect to previous one.
+			WiFi.persistent(false);
+			WiFi.mode(WIFI_OFF);   // this is a temporary line, to be removed after SDK update to 1.5.4
+
+		} //for next WPA defined AP
+	  
+		i++;			// Number of times we try to connect
 	} //while
 
-	// It should not be possible to be here while WL_CONNECTed
-	if (WiFi.status() == WL_CONNECTED) {
-#if DUSB>=1
-		if (( debug>=3 ) && ( pdebug & P_MAIN )) {
-			Serial.print(F("WLAN connected"));
-			Serial.println();
-		}
-#endif
-		writeGwayCfg(CONFIGFILE);
-		return(1);
-	}
-	else {
+	
+	// If we are not connected to a well known AP
+	// we can invoike WIFIMANAGER or else return unsuccessful.
+	if (WiFi.status() != WL_CONNECTED) {
 #if WIFIMANAGER==1
 #if DUSB>=1
 		Serial.println(F("Starting Access Point Mode"));
@@ -273,7 +346,7 @@ int WlanConnect(int maxTry) {
 		WlanWriteWpa((char *)sta_conf.ssid, (char *)sta_conf.password);
 #else
 #if DUSB>=1
-		if (( debug>=0) && ( pdebug & P_MAIN )) {
+		if (debug>=0) {
 			Serial.println(F("WlanConnect:: Not connected after all"));
 			Serial.print(F("WLAN retry="));
 			Serial.print(i);
@@ -281,13 +354,11 @@ int WlanConnect(int maxTry) {
 			Serial.print(WiFi.status() );						// Status. 3 is WL_CONNECTED
 			Serial.println();
 		}
-#endif // DUSB
+#endif// DUSB
 		return(-1);
 #endif
 	}
 
-  
 	yield();
-  
 	return(1);
 }

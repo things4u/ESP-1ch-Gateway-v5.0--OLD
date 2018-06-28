@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.2.1
-// Date: 2018-06-06
+// Version 5.3.1
+// Date: 2018-06-30
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -29,7 +29,7 @@
 #if OLED>=1										// If OLED is used
 
 // --------------------------------------------------------	
-// Define the diffretn PIN's used for SCL/SDA for each arch.
+// Define the different PIN's used for SCL/SDA for each arch.
 //
 #if _PIN_OUT==1									// HALLARD
 #define OLED_SCL 5								// GPIO5 / D1
@@ -40,8 +40,9 @@
 #define OLED_SDA 2								// GPIO2 / D4
 
 #elif _PIN_OUT==4								// TTGO (onboard version used, also for DIY)
-#define OLED_SCL 5								// GPIO5 / D1
-#define OLED_SDA 4								// GPIO4 / D2
+#define OLED_SCL 15								// GPIO15 / 
+#define OLED_SDA 4								// GPIO4 / 
+#define OLED_RST 16
 
 #endif
 

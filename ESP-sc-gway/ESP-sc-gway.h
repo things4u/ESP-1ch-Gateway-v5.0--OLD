@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.2.1 H
-// Date: 2018-06-06
+// Version 5.3.1 H
+// Date: 2018-06-30
 //
 // Based on work done by Thomas Telkamp for Raspberry PI 1ch gateway and many others.
 // Contibutions of Dorijan Morelj and Andreas Spies for OLED support.
@@ -19,7 +19,7 @@
 //
 // ----------------------------------------------------------------------------------------
 
-#define VERSION "V.5.2.1.H; 180606a"
+#define VERSION "V.5.3.1.H; 180630a"
 
 // This value of DEBUG determines whether some parts of code get compiled.
 // Also this is the initial value of debug parameter. 
@@ -37,7 +37,11 @@
 // This is usually a good idea if the webserver is interrupted halfway a writing
 // operation.
 // Normally, value 0 is a good default.
-#define SPIFF_FORMAT 0
+#define _SPIFF_FORMAT 0
+
+// Define the LoRa Frequncy band that is used. TTN Supported values are 925MHz, 868MHz and 433MHz.
+// So supported values are: 433 868 915
+#define _LFREQ 868
 
 // The spreading factor is the most important parameter to set for a single channel
 // gateway. It specifies the speed/datarate in which the gateway and node communicate.
@@ -78,8 +82,9 @@
 //	1: HALLARD
 //	2: COMRESULT pin out
 //	3: ESP32 Wemos pin out
-//	4: ESP32 TTGO pinning
-//	5: Other, define your own in loraModem.h
+//	4: ESP32 TTGO pinning (should work for 433 and OLED too).
+//	5: ESP32 TTGO EU433 MHz with OLED
+//	6: Other, define your own in loraModem.h
 #define _PIN_OUT 1
 
 // Gather statistics on sensor and Wifi status
@@ -112,14 +117,6 @@
 // getting WiFi SSID and password using WiFiManager)
 #define AP_NAME "YourName"
 #define AP_PASSWD "YourPassword"
-							
-
-// Defines whether the gateway will also report sensor/status value on MQTT
-// after all, a gateway can be a node to the system as well
-// Set its LoRa address and key below in this file
-// See spec. para 4.3.2
-#define GATEWAYNODE 0
-#define _CHECK_MIC 0
 
 // This section defines whether we use the gateway as a repeater
 // For his, we use another output channle as the channel (default==0) we are 
@@ -185,8 +182,8 @@
 // Port is UDP port in this program
 //
 // Default for testing: Switched off
-#define _THINGPORT <port>					// dash.westenberg.org:8057
-#define _THINGSERVER "<dns.server.com>"		// Server URL of the LoRa-udp.js handler
+//#define _THINGPORT <port>					// e.g. 1700
+//#define _THINGSERVER "<dns.server.com>"	// Server URL of the LoRa-udp.js handler
 
 // Gateway Ident definitions
 #define _DESCRIPTION "ESP Gateway"			// Name of the gateway
@@ -203,11 +200,22 @@
 #define SECS_IN_HOUR	3600
 #define NTP_INTR 0							// Do NTP processing with interrupts or in loop();
 
+
+// Defines whether the gateway will also report sensor/status value on MQTT
+// after all, a gateway can be a node to the system as well
+// Set its LoRa address and key below in this file
+// See spec. para 4.3.2
+#define GATEWAYNODE 0
+#define _CHECK_MIC 0
+
 #if GATEWAYNODE==1
 #define _DEVADDR { 0x26, 0x01, 0x01, 0x01 }
 #define _APPSKEY { 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
 #define _NWKSKEY { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
 #define _SENSOR_INTERVAL 300
+// For ESP32 based TTGO boards these two are normally included
+#define _GPS 0
+#define _BATTERY 0
 #endif
 
 // Define the correct radio type that you are using

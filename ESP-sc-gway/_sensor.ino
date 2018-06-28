@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg
-// Verison 5.2.1
-// Date: 2018-06-06
+// Verison 5.3.1
+// Date: 2018-06-30
 //
 // All rights reserved. This program and the accompanying materials
 // are made available under the terms of the MIT License
@@ -16,25 +16,31 @@
 // Please specify the DevAddr and the AppSKey below (and on your LoRa backend).
 // Also you will have to choose what sensors to forward to your application.
 //
+// Note: disable sensors not used in ESP-sc-gway.h
+//	- The GPS is included on TTGO T-Beam ESP32 boards by default.
+//	- The battery sensor works by connecting the VCC pin to A0 analog port
 // ============================================================================
-		
+	
 #if GATEWAYNODE==1
 
+#include "LoRaCode.h"
+
+#if _GPS==1
+// Only used by GPS sensor code
+//
+static void smartDelay(unsigned long ms)                
+{
+  unsigned long start = millis();
+  do
+  {
+    while (Serial1.available())
+      gps.encode(Serial1.read());
+  } while (millis() - start < ms);
+}
+#endif
+
+
 unsigned char DevAddr[4]  = _DEVADDR ;				// see ESP-sc-gway.h
-
-
-// ----------------------------------------------------------------------------
-// XXX Experimental Read Internal Sensors
-//
-// You can monitor some settings of the RFM95/sx1276 chip. For example the temperature
-// which is set in REGTEMP in FSK mode (not in LORA). Or the battery value.
-// Find some sensible sensor values for LoRa radio and read them below in separate function
-//
-// ----------------------------------------------------------------------------
-//uint8_t readInternal(uint8_t reg) {
-//
-//	return 0;
-//}
 
 
 // ----------------------------------------------------------------------------
@@ -46,25 +52,79 @@ unsigned char DevAddr[4]  = _DEVADDR ;				// see ESP-sc-gway.h
 // of-course you can add any byte string you wish
 //
 // Parameters: 
-//	- buf: contains the buffer to put the sensor values in
+//	- buf: contains the buffer to put the sensor values in (max==xx);
 // Returns:
-//	- The amount of sensor characters put in the buffer 
+//	- The amount of sensor characters put in the buffer
+//
+// NOTE: The code in LoRaSensors() is provided as an example only.
+//	The amount of sensor values as well as their message layout may differ
+//	for each implementation.
+//	Also, the message format used by this gateway is LoraCode, a message format
+//	developed by me for sensor values. Each value is uniquely coded with an
+//	id and a value, and the total message contains its length (less than 64 bytes)
+//	and a parity value in byte[0] bit 7.
 // ----------------------------------------------------------------------------
 static int LoRaSensors(uint8_t *buf) {
-
-	uint8_t internalSersors;
-	//internalSersors = readInternal(0x1A);
-	//if (internalSersors > 0) {		
-	//	return (internalSersors);
-	//}
 	
-	
+	uint8_t tchars = 1;
 	buf[0] = 0x86;									// 134; User code <lCode + len==3 + Parity
-	buf[1] = 0x80;									// 128; lCode code <battery>
-	buf[2] = 0x3F;									//  63; lCode code <value>
-	// Parity = buf[0]==1 buf[1]=1 buf[2]=0 ==> even, so last bit of first byte must be 0
 	
-	return(3);	// return the number of bytes added to payload
+#if _BATTERY==1
+#if DUSB>=1
+	if (debug>=0)
+		Serial.println(F("LoRaSensors:: Battery"));
+#endif
+	buf[tchars]   = 0x80;							// 128; lCode code <battery>
+	buf[tchars+1] = 0x3F;							//  63; lCode code <value>/30
+	tchars+=2;
+#endif
+
+#if _GPS==1
+#if DUSB>=1
+	if (debug>=0)
+		Serial.println(F("LoRaSensors:: GPS"));
+
+	if (debug>=1) {
+		Serial.print("Latitude  : ");
+		Serial.println(gps.location.lat(), 5);
+		Serial.print("Longitude : ");
+		Serial.println(gps.location.lng(), 4);
+		Serial.print("Satellites: ");
+		Serial.println(gps.satellites.value());
+		Serial.print("Altitude  : ");
+		Serial.print(gps.altitude.feet() / 3.2808);
+		Serial.println("M");
+		Serial.print("Time      : ");
+		Serial.print(gps.time.hour());
+		Serial.print(":");
+		Serial.print(gps.time.minute());
+		Serial.print(":");
+		Serial.println(gps.time.second());
+	}
+#endif
+
+	smartDelay(1000);
+	
+	if (millis() > 5000 && gps.charsProcessed() < 10) {
+#if DUSB>=1
+		Serial.println(F("No GPS data received: check wiring"));
+#endif
+		return(0);
+	}
+	
+	// Assuming we have a value, put it in the buf
+	// The layout of thi message is specific to the user,
+	// so adapt as needed.
+	tchars += lcode.eGpsL(gps.location.lat(), gps.location.lng(), gps.altitude.value(),
+                       gps.satellites.value(), buf + tchars);
+
+#endif
+
+	// If all sensor data is encoded, we encode the buffer
+	
+	lcode.eMsg(buf, tchars);								// Fill byte 0 with bytecount and Parity
+	
+	return(tchars);	// return the number of bytes added to payload
 }
 
 
@@ -395,7 +455,7 @@ static void checkMic(uint8_t *buf, uint8_t len, uint8_t *key) {
 //					( MHDR | ( FHDR | FPORT | FRMPAYLOAD ) | MIC )
 //
 //	This function makes the totalpackage and calculates MIC
-// Te maximum size of the message is: 12 + ( 9 + 2 + 64 ) + 4	
+// The maximum size of the message is: 12 + ( 9 + 2 + 64 ) + 4	
 // So message size should be lass than 128 bytes if Payload is limited to 64 bytes.
 //
 // return value:
@@ -411,7 +471,7 @@ int sensorPacket() {
 	struct LoraUp LUP;
 	
 	// Init the other LoraUp fields
-	LUP.sf = 9;
+	LUP.sf = 8;											// Send with SF8
 	LUP.prssi = -50;
 	LUP.rssicorr = 139;
 	LUP.snr = 0;

@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.2.1
-// Date: 2018-06-06
+// Version 5.3.1		
+// Date: 2018-06-30	
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -42,7 +42,7 @@ int readConfig(const char *fn, struct espGwayConfig *c) {
 
 	int tries = 0;
 #if DUSB>=1
-	Serial.print(F("readConfig:: Starting "));
+	Serial.println(F("readConfig:: Starting "));
 #endif
 	if (!SPIFFS.exists(fn)) {
 #if DUSB>=1
@@ -89,10 +89,10 @@ int readConfig(const char *fn, struct espGwayConfig *c) {
 			id_print(id, val);
 			(*c).ssid = val;									// val contains ssid, we do NO check
 		}
-		//else if (id == "PASS") { 								// WiFi Password
-		//	id_print(id, val); 
-		//	(*c).pass = val;
-		//}
+		else if (id == "PASS") { 								// WiFi Password
+			id_print(id, val); 
+			(*c).pass = val;
+		}
 		else if (id == "CH") { 									// Frequency Channel
 			id_print(id,val); 
 			(*c).ch = (uint32_t) val.toInt();
@@ -195,7 +195,7 @@ int readConfig(const char *fn, struct espGwayConfig *c) {
 int writeGwayCfg(const char *fn) {
 
 	gwayConfig.ssid = WiFi.SSID();
-	//gwayConfig.pass = WiFi.PASS();					// XXX We should find a way to store the password too
+	gwayConfig.pass = WiFi.psk();						// XXX We should find a way to store the password too
 	gwayConfig.ch = ifreq;								// Frequency Index
 	gwayConfig.sf = (uint8_t) sf;						// Spreading Factor
 	gwayConfig.debug = debug;

@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.2.1
-// Date: 2018-06-06
+// Version 5.3.1
+// Date: 2018-06-30
 // Author: Maarten Westenberg (mw12554@hotmail.com)
 //
 // Based on work done by Thomas Telkamp for Raspberry PI 1-ch gateway and many others.
@@ -102,11 +102,18 @@ extern "C" {
 #include <ArduinoOTA.h>
 #endif//OTA
 
-#endif//PIN_OUT>=3
+#endif//ESP_ARCH
 	
-
 uint8_t debug=1;								// Debug level! 0 is no msgs, 1 normal, 2 extensive
 uint8_t pdebug=0xFF;							// Allow all atterns (departments)
+
+#if GATEWAYNODE==1
+#if _GPS==1
+#include <TinyGPS++.h>
+TinyGPSPlus gps;
+HardwareSerial Serial1(1);
+#endif
+#endif
 
 // You can switch webserver off if not necessary but probably better to leave it in.
 #if A_SERVER==1
@@ -467,6 +474,7 @@ int readUdp(int packetSize)
 	uint8_t buff[32]; 						// General buffer to use for UDP, set to 64
 	uint8_t buff_down[RX_BUFF_SIZE];		// Buffer for downstream
 
+//	if ((WiFi.status() != WL_CONNECTED) &&& (WlanConnect(10) < 0)) {
 	if (WlanConnect(10) < 0) {
 #if DUSB>=1
 			Serial.print(F("readdUdp: ERROR connecting to WLAN"));
@@ -962,12 +970,30 @@ void setup() {
 	Serial.begin(_BAUDRATE);						// As fast as possible for bus
 	delay(100);	
 
+#if _GPS==1
+	// Pins are define in LoRaModem.h together with other pins
+	Serial1.begin(9600, SERIAL_8N1, GPS_TX, GPS_RX);// PIN 12-TX 15-RX
+#endif
+
 #ifdef ESP32
-	Serial.println(F("ESP32 defined"));
+#if DUSB>=1
+	Serial.print(F("ESP32 defined, freq="));
+#if _LFREQ==433
+	Serial.print(freqs[0]);
+	Serial.print(F(" EU433"));
+#elif _LFREQ==868
+	Serial.print(freqs[0]);
+	Serial.print(F(" EU868"));
+#endif
+	Serial.println();
+#endif
 #endif
 #ifdef ARDUINO_ARCH_ESP32
+#if DUSB>=1
 	Serial.println(F("ARDUINO_ARCH_ESP32 defined"));
 #endif
+#endif
+
 
 #if DUSB>=1
 	Serial.flush();
@@ -980,7 +1006,7 @@ void setup() {
 	else {
 	}
 #endif	
-#if SPIFF_FORMAT>=1
+#if _SPIFF_FORMAT>=1
 #if DUSB>=1
 	if (( debug >= 0 ) && ( pdebug & P_MAIN )) {
 		Serial.println(F("Format Filesystem ... "));
@@ -1016,7 +1042,8 @@ void setup() {
 #endif
 
 	WiFi.mode(WIFI_STA);
-	WiFi.begin();
+	WiFi.setAutoConnect(true);
+	//WiFi.begin();
 	
 	WlanReadWpa();								// Read the last Wifi settings from SPIFFS into memory
 
@@ -1032,13 +1059,14 @@ void setup() {
 	// We start by connecting to a WiFi network, set hostname
 	char hostname[12];
 
-	// Setup WiFi UDP connection. Give it some time and retry 50 times..
-	while (WlanConnect(50) < 0) {
+	// Setup WiFi UDP connection. Give it some time and retry x times..
+	while (WlanConnect(0) <= 0) {
 		Serial.print(F("Error Wifi network connect "));
 		Serial.println();
 		yield();
 	}	
 	
+	// After there is a WiFi router connection, we can also set the hostname.
 #if ESP32_ARCH==1
 	sprintf(hostname, "%s%02x%02x%02x", "esp32-", MAC_array[3], MAC_array[4], MAC_array[5]);
 	WiFi.setHostname( hostname );

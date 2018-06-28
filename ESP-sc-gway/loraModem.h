@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.2.1
-// Date: 2018-06-06
+// Version 5.3.1
+// Date: 2018-06-30
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many other contributors.
@@ -58,9 +58,14 @@ long txDelay= 0x00;								// tx delay time on top of server TMST
 // Frequencies
 // Set center frequency. If in doubt, choose the first one, comment all others
 // Each "real" gateway should support the first 3 frequencies according to LoRa spec.
+// NOTE: This means you have to specify at least 3 frequencies here for the single
+//	channel gateway to work.
 
+#if _LFREQ==868
+// This the the EU868 format as used in most of Europe
+// It is also the default for most of the single channel gateway work.
 int freqs [] = { 
-	868100000, 									// Channel 0, 868.1 MHz primary
+	868100000, 									// Channel 0, 868.1 MHz/125 primary
 	868300000, 									// Channel 1, 868.3 MHz mandatory
 	868500000, 									// Channel 2, 868.5 MHz mandatory
 	867100000, 									// Channel 3, 867.1 MHz Optional
@@ -68,10 +73,48 @@ int freqs [] = {
 	867500000,  								// Channel 5, 867.5 MHz Optional
 	867700000,  								// Channel 6, 867.7 MHz Optional 
 	867900000,  								// Channel 7, 867.9 MHz Optional 
-	868800000,   								// Channel 8, 868.9 MHz Optional
-	869525000									// Channel 9, 869.5 MHz for responses gateway (10%)
+	868800000,   								// Channel 8, 868.9 MHz/125 Optional
+	869525000									// Channel 9, 869.5 MHz/125 for RX2 responses SF9(10%)
 	// TTN defines an additional channel at 869.525Mhz using SF9 for class B. Not used
 };
+#elif _LFREQ==433
+// The following 3 frequencies should be defined/used in an EU433 
+// environment.
+int freqs [] = {
+	433175000, 									// Channel 0, 433.175 MHz/125 primary
+	433375000, 									// Channel 1, 433.375 MHz primary
+	433575000, 									// Channel 2, 433.575 MHz primary
+	433775000, 									// Channel 3, 433.775 MHz primary
+	433975000, 									// Channel 4, 433.975 MHz primary
+	434175000, 									// Channel 5, 434.175 MHz primary
+	434375000, 									// Channel 6, 434.375 MHz primary
+	434575000, 									// Channel 7, 434.575 MHz primary
+	434775000 									// Channel 8, 434.775 MHz primary
+};
+#elif _LFREQ==915
+// US902=928
+// AU915-928
+int freqs [] = {
+	// Uplink
+	903900000, 									// Channel 0, SF7BW125 to SF10BW125 primary
+	904100000, 									// Ch 1, SF7BW125 to SF10BW125
+	904300000, 									// Ch 2, SF7BW125 to SF10BW125
+	904500000, 									// Ch 3, SF7BW125 to SF10BW125
+	904700000, 									// Ch 4, SF7BW125 to SF10BW125
+	904900000, 									// Ch 5, SF7BW125 to SF10BW125
+	905100000, 									// Ch 6, SF7BW125 to SF10BW125
+	905100000, 									// Ch 7, SF7BW125 to SF10BW125
+	904600000 									// Ch 8, SF8BW500 
+	// Downlink
+	// We should specify downlink frequencies here											
+												// SFxxxBW500
+};
+#else
+int freqs [] = {
+	// Print an Error, Not supported
+#error "Sorry, but your frequency plan is not supported"
+};
+#endif
 uint32_t  freq = freqs[0];
 uint8_t	 ifreq = 0;								// Channel Index
 
@@ -101,7 +144,7 @@ unsigned long detTime=0;
 
 #if _PIN_OUT==1
 // ----------------------------------------------------------------------------
-// HALLARD Definition of the GPIO pins for Hallard type boards
+// Definition of the GPIO pins used by the Gateway for Hallard type boards
 //
 struct pins {
 	uint8_t dio0=15;	// GPIO15 / D8. For the Hallard board shared between DIO0/DIO1/DIO2
@@ -116,7 +159,7 @@ struct pins {
 
 #elif _PIN_OUT==2
 // ----------------------------------------------------------------------------
-// COMRESULT gateway PCB use the following settings
+// For ComResult gateway PCB use the following settings
 struct pins {
 	uint8_t dio0=5;		// GPIO5 / D1. Dio0 used for one frequency and one SF
 	uint8_t dio1=4;		// GPIO4 / D2. Used for CAD, may or not be shared with DIO0
@@ -139,13 +182,13 @@ struct pins {
 	uint8_t dio1=26;		// GPIO26 / Used for CAD, may or not be shared with DIO0
 	uint8_t dio2=26;		// GPI2O6 / Used for frequency hopping, don't care
 	uint8_t ss=18;			// GPIO18 / Dx. Select pin connected to GPIO18
-	uint8_t rst=14;			// GPIO14 / D3. Reset pin not used	
+	uint8_t rst=14;			// GPIO0  / D3. Reset pin not used	
 } pins;
 
 
 #elif _PIN_OUT==4
 // ----------------------------------------------------------------------------
-// ESP32/TTGO based board
+// For ESP32/TTGO based board.
 // SCK  == GPIO5/ PIN5
 // SS   == GPIO18/PIN18 CS
 // MISO == GPIO19/ PIN19
@@ -153,21 +196,25 @@ struct pins {
 // RST  == GPIO14/ PIN14
 struct pins {
 	uint8_t dio0=26;		// GPIO26 / Dio0 used for one frequency and one SF
-	uint8_t dio1=33;		// GPIO33 / Used for CAD, may or not be shared with DIO0
-	uint8_t dio2=32;		// GPIO32 / Used for frequency hopping, don't care
+	uint8_t dio1=33;		// GPIO26 / Used for CAD, may or not be shared with DIO0
+	uint8_t dio2=32;		// GPIO26 / Used for frequency hopping, don't care
 	uint8_t ss=18;			// GPIO18 / Dx. Select pin connected to GPIO18
-	uint8_t rst=14;			// GPIO14 / D3. Reset pin not used	
+	uint8_t rst=14;			// GPIO0  / D3. Reset pin not used	
 } pins;
 #define SCK 5
 #define MISO 19
 #define MOSI 27
 #define RST 14
 #define SS 18
-
+#define GPS_RX 15
+#define GPS_TX 12
 
 #elif _PIN_OUT==5
 // ----------------------------------------------------------------------------
-// ESP32/TTGO based board, with onboard battery and GPS(!)
+// For ESP32/TTGO based board for EU32 with 0.9" OLED
+// NOTE: This board shoudl be same as general type TTGO (nr 4)
+// but for the moment we include this as a separate item
+//
 // SCK  == GPIO5/ PIN5
 // SS   == GPIO18/PIN18 CS
 // MISO == GPIO19/ PIN19
@@ -175,15 +222,15 @@ struct pins {
 // RST  == GPIO14/ PIN14
 struct pins {
 	uint8_t dio0=26;		// GPIO26 / Dio0 used for one frequency and one SF
-	uint8_t dio1=33;		// GPIO33 / Used for CAD, not be shared with DIO0, NOT CONNECTED BY DEFAULT
-	uint8_t dio2=32;		// GPIO32 / Used for frequency hopping, don't care
+	uint8_t dio1=33;		// GPIO26 / Used for CAD, may or not be shared with DIO0
+	uint8_t dio2=32;		// GPIO26 / Used for frequency hopping, don't care
 	uint8_t ss=18;			// GPIO18 / Dx. Select pin connected to GPIO18
-	uint8_t rst=14;			// GPIO14 / D3. Reset pin not used	
+	uint8_t rst=14;			// GPIO0 / D3. Reset pin not used	
 } pins;
-#define SCK 5
-#define MISO 19
-#define MOSI 27
-#define RST 14
+#define SCK 5				// Check
+#define MISO 19				// Check
+#define MOSI 27				// Check
+#define RST 14				// Check
 #define SS 18
 
 #else
