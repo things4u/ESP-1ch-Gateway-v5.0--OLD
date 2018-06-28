@@ -49,11 +49,18 @@ under the Gateway chapter.
 
 ## testing
 
-The single channel gateway has been tested on a gateway with the Wemos D1 Mini, using a HopeRF RFM95W transceiver.  
+This Gateway code has been tested on the following boards:
+
+- Wemos D1 Mini + Hallard board with RFM95
+- Wemos D1 Mini + Comresult board with RFM95
+- TTGO T-Beam board, ESP32, SX1276, Battery and GPS
+- TTGO ESP32 V1 board, SX1276 on EU868
+- TTGO ESP32 V1 board, SX1278, OLED on 433MHz
+  
 The LoRa nodes tested againts this gateway are:
 
 - TeensyLC with HopeRF RFM95 radio
-- Arduino Pro-Mini (default Armega328 model, 8MHz 3.3V and 16MHz 3.3V)
+- Arduino Pro-Mini (default Atmega328 model, 8MHz 3.3V and 16MHz 3.3V)
 - ESP8266 based nodes with RFM95 transceivers.
 
 The code has been tested on at least 8 separate gateway boards both based on the Hallard and the Comresult boards. 
