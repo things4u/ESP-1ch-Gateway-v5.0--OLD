@@ -1,6 +1,6 @@
 # Single Channel LoRaWAN Gateway
 
-Version 5.3.1, June 30, 2018  
+Version 5.3.2, July 07, 2018  
 Author: M. Westenberg (mw12554@hotmail.com)  
 Copyright: M. Westenberg (mw12554@hotmail.com)  
 
@@ -49,18 +49,11 @@ under the Gateway chapter.
 
 ## testing
 
-This Gateway code has been tested on the following boards:
-
-- Wemos D1 Mini + Hallard board with RFM95
-- Wemos D1 Mini + Comresult board with RFM95
-- TTGO T-Beam board, ESP32, SX1276, Battery and GPS
-- TTGO ESP32 V1 board, SX1276 on EU868
-- TTGO ESP32 V1 board, SX1278, OLED on 433MHz
-  
+The single channel gateway has been tested on a gateway with the Wemos D1 Mini, using a HopeRF RFM95W transceiver.  
 The LoRa nodes tested againts this gateway are:
 
 - TeensyLC with HopeRF RFM95 radio
-- Arduino Pro-Mini (default Atmega328 model, 8MHz 3.3V and 16MHz 3.3V)
+- Arduino Pro-Mini (default Armega328 model, 8MHz 3.3V and 16MHz 3.3V)
 - ESP8266 based nodes with RFM95 transceivers.
 
 The code has been tested on at least 8 separate gateway boards both based on the Hallard and the Comresult boards. 
@@ -400,9 +393,9 @@ The following things are still on my wish list to make to the single channel gat
 
 - Receive downstream message with commands from the server. These can be used to configure
   the gateway through downlink messages (such as setting the SF)
-- Support for ESP32 and RFM95 on 915 MHz
+- Support for ESP32 and RFM95 on 433 MHz
 - Use the SPIFFS for storing .css files
-- Use the SPIFFS for storing node data (for later analysis)
+- Look at CLass B and C support
 
 
 

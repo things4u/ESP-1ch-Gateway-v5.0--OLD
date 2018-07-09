@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.3.1
-// Date: 2018-06-30
+// Version 5.3.2
+// Date: 2018-07-07
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -10,6 +10,8 @@
 // are made available under the terms of the MIT License
 // which accompanies this distribution, and is available at
 // https://opensource.org/licenses/mit-license.php
+//
+// NO WARRANTY OF ANY KIND IS PROVIDED
 //
 // Author: Maarten Westenberg (mw12554@hotmail.com)
 //
@@ -213,12 +215,14 @@ int sendPacket(uint8_t *buf, uint8_t length)
 // build a gateway message to send upstream (to the user somewhere on the web).
 //
 // parameters:
-// tmst: Timestamp to include in the upstream message
-// buff_up: The buffer that is generated for upstream
-// message: The payload message to include in the the buff_up
-// messageLength: The number of bytes received by the LoRa transceiver
-// internal: Boolean value to indicate whether the local sensor is processed
+// 	tmst: Timestamp to include in the upstream message
+// 	buff_up: The buffer that is generated for upstream
+// 	message: The payload message to include in the the buff_up
+//	messageLength: The number of bytes received by the LoRa transceiver
+// 	internal: Boolean value to indicate whether the local sensor is processed
 //
+// returns:
+//	buff_index
 // ----------------------------------------------------------------------------
 int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool internal) 
 {
@@ -253,8 +257,41 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 	}
 
 #if STATISTICS >= 1
-	// Receive statistics
+	// Receive statistics, move old statistics down 1 position
+	// and fill the new top line with the latest received sensor values.
+	// This works fine for the sensor, EXCEPT when we decode data for _LOCALSERVER
+	//
 	for (int m=( MAX_STAT -1); m>0; m--) statr[m]=statr[m-1];
+	
+	// From now on we can fill start[0] with sensor data
+#if _LOCALSERVER==1
+	statr[0].datal=0;
+	int index;
+	if ((index = inDecodes((char *)(LoraUp.payLoad+1))) >=0 ) {
+
+		uint16_t frameCount=LoraUp.payLoad[7]*256 + LoraUp.payLoad[6];
+		
+		for (int k=0; (k<LoraUp.payLength) && (k<23); k++) {
+			statr[0].data[k] = LoraUp.payLoad[k+9];
+		};
+		
+		// XXX Check that k<23 when leaving the for loop
+		// XXX or we can not display in statr
+		
+		uint8_t DevAddr[4]; 
+		DevAddr[0]= LoraUp.payLoad[4];
+		DevAddr[1]= LoraUp.payLoad[3];
+		DevAddr[2]= LoraUp.payLoad[2];
+		DevAddr[3]= LoraUp.payLoad[1];
+
+		statr[0].datal = encodePacket((uint8_t *)(statr[0].data), 
+								LoraUp.payLength-9-4, 
+								(uint16_t)frameCount, 
+								DevAddr, 
+								decodes[index].appKey, 
+								0);
+	}
+#endif //_LOCALSERVER
 	statr[0].tmst = now();
 	statr[0].ch= ifreq;
 	statr[0].prssi = prssi - rssicorr;
@@ -267,17 +304,19 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 		if ((message[4] != 0x26) || (message[1]==0x99)) {
 			Serial.print(F("addr="));
 			for (int i=messageLength; i>0; i--) {
-				if (message[i]<16) Serial.print('0');
+				if (message[i]<0x10) Serial.print('0');
 				Serial.print(message[i],HEX);
 				Serial.print(' ');
 			}
 			Serial.println();
 		}
 	}
-#endif // DUSB
+#endif //DUSB
 	statr[0].node = ( message[1]<<24 | message[2]<<16 | message[3]<<8 | message[4] );
 
 #if STATISTICS >= 2
+	// Fill in the statistics that we will also need for the GUI.
+	// So 
 	switch (statr[0].sf) {
 		case SF7: statc.sf7++; break;
 		case SF8: statc.sf8++; break;
@@ -286,7 +325,7 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 		case SF11: statc.sf11++; break;
 		case SF12: statc.sf12++; break;
 	}
-#endif // STATISTICS >= 2
+#endif //STATISTICS >= 2
 
 #if STATISTICS >= 3
 	if (statr[0].ch == 0) switch (statr[0].sf) {
@@ -315,9 +354,9 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 		case SF11: statc.sf11_2++; break;
 		case SF12: statc.sf12_2++; break;
 	}
-#endif // STATISTICS >= 3
+#endif //STATISTICS >= 3
 
-#endif // STATISTICS >= 2
+#endif //STATISTICS >= 2
 
 #if DUSB>=1	
 	if (( debug>=2 ) && ( pdebug & P_RADIO )){
@@ -382,8 +421,10 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 	int encodedLen = base64_enc_len(messageLength);		// max 341
 #if DUSB>=1
 	if ((debug>=1) && (encodedLen>255)) {
-		Serial.println(F("buildPacket:: b64 error"));
+		Serial.print(F("buildPacket:: b64 err, len="));
+		Serial.println(encodedLen);
 		if (debug>=2) Serial.flush();
+		return(-1);
 	}
 #endif // DUSB
 	base64_encode(b64, (char *) message, messageLength);// max 341
@@ -523,7 +564,7 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 
 // ----------------------------------------------------------------------------
 // UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP UP 
-// Receive a LoRa package over the air, LoRa
+// Receive a LoRa package over the air, LoRa and deliver to server(s)
 //
 // Receive a LoRa message and fill the buff_up char buffer.
 // returns values:
@@ -546,7 +587,7 @@ int receivePacket()
 
 		// Take the timestamp as soon as possible, to have accurate reception timestamp
 		// TODO: tmst can jump if micros() overflow.
-		uint32_t tmst = (uint32_t) micros();			// Only microseconds, rollover in 
+		uint32_t tmst = (uint32_t) micros();			// Only microseconds, rollover in 5X minutes
 		//lastTmst = tmst;								// Following/according to spec
 		
 		// Handle the physical data read from LoraUp
@@ -563,9 +604,6 @@ int receivePacket()
 				return(-3);
 			}
 #endif
-
-			LoraUp.payLength = 0;
-			LoraUp.payLoad[0] = 0x00;
 			
 			// This is one of the potential problem areas.
 			// If possible, USB traffic should be left out of interrupt routines
@@ -576,12 +614,76 @@ int receivePacket()
 			}
 			yield();
 #endif
-
+			// Use our own defined server or a second well kon server
 #ifdef _THINGSERVER
 			if (!sendUdp(thingServer, _THINGPORT, buff_up, build_index)) {
 				return(-2); 							// received a message
 			}
 #endif
+
+#if _LOCALSERVER==1
+			// Or special case, we do not use a local server to receive
+			// and decode the server. We use buildPacket() to call decode
+			// and use statr[0] information to store decoded message
+
+			//DecodePayload: para 4.3.1 of Lora 1.1 Spec
+			// MHDR
+			//	1 byte			Payload[0]
+			// FHDR
+			// 	4 byte Dev Addr Payload[1-4]
+			// 	1 byte FCtrl  	Payload[5]
+			// 	2 bytes FCnt	Payload[6-7]				
+			// 		= Optional 0 to 15 bytes Options
+			// FPort
+			//	1 bytes, 0x00	Payload[8]
+			// ------------
+			// +=9 BYTES HEADER
+			//
+			// FRMPayload
+			//	N bytes			(Payload )
+			//
+			// 4 bytes MIC trailer
+
+			int index=0;
+			if ((index = inDecodes((char *)(LoraUp.payLoad+1))) >=0 ) {
+
+				uint8_t DevAddr[4]; 
+				DevAddr[0]= LoraUp.payLoad[4];
+				DevAddr[1]= LoraUp.payLoad[3];
+				DevAddr[2]= LoraUp.payLoad[2];
+				DevAddr[3]= LoraUp.payLoad[1];
+				uint16_t frameCount=LoraUp.payLoad[7]*256 + LoraUp.payLoad[6];
+
+#if DUSB>=1
+				
+				Serial.print(F("receivePacket:: Ind="));
+				Serial.print(index);
+				Serial.print(F(", Len="));
+				Serial.print(LoraUp.payLength);
+				Serial.print(F(", A="));
+				for (int i=0; i<4; i++) {
+					if (DevAddr[i]<0x0F) Serial.print('0');
+					Serial.print(DevAddr[i],HEX);
+					//Serial.print(' ');
+				}
+				
+				Serial.print(F(", Msg="));
+				for (int i=0; (i<statr[0].datal) && (i<23); i++) {
+					if (statr[0].data[i]<0x0F) Serial.print('0');
+					Serial.print(statr[0].data[i],HEX);
+					Serial.print(' ');
+				}
+				Serial.println();
+			}
+			else if (debug>=2) {
+					Serial.println(F("receivePacket:: No Index"));
+			}
+#endif //DUSB
+#endif // _LOCALSERVER
+
+			// Reset the message area
+			LoraUp.payLength = 0;
+			LoraUp.payLoad[0] = 0x00;
 			return(build_index);
         }
 		

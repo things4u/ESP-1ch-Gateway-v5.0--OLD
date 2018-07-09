@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.3.1		
-// Date: 2018-06-30	
+// Version 5.3.2		
+// Date: 2018-07-07
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -10,6 +10,8 @@
 // are made available under the terms of the MIT License
 // which accompanies this distribution, and is available at
 // https://opensource.org/licenses/mit-license.php
+//
+// NO WARRANTY OF ANY KIND IS PROVIDED
 //
 // Author: Maarten Westenberg (mw12554@hotmail.com)
 //
@@ -34,6 +36,21 @@ void id_print (String id, String val) {
 #endif
 }
 
+// ----------------------------------------------------------------------------
+// INITCONFIG; Init the gateway configuration file
+// Espcecially when calling SPIFFS.format() the gateway is left in an init
+// which is not very well defined. This function will init some of the settings
+// to well known settings.
+// ----------------------------------------------------------------------------
+int initConfig(struct espGwayConfig *c) {
+	(*c).ch = 0;
+	(*c).sf = SF8;
+	(*c).debug = 1;
+	(*c).pdebug = P_GUI;
+	(*c).cad = _CAD;
+	(*c).hop = false;
+}
+
 
 // ----------------------------------------------------------------------------
 // Read the gateway configuration file
@@ -52,6 +69,7 @@ int readConfig(const char *fn, struct espGwayConfig *c) {
 		Serial.print(F(" does not exist .. Formatting"));
 #endif
 		SPIFFS.format();
+		initConfig(c);
 		return(-1);
 	}
 
@@ -78,6 +96,7 @@ int readConfig(const char *fn, struct espGwayConfig *c) {
 				Serial.println(F("Formatting"));
 #endif
 			SPIFFS.format();
+			initConfig(c);
 			f = SPIFFS.open(fn, "r");
 			tries = 0;
 		}
@@ -209,15 +228,20 @@ int writeGwayCfg(const char *fn) {
 }
 
 // ----------------------------------------------------------------------------
-// Write the configuration ad found in the espGwayConfig structure
+// Write the configuration as found in the espGwayConfig structure
 // to SPIFFS
+// Parameters:
+//		fn; Filename
+//		c; struct config
+// Returns:
+//		1 when successful, -1 on error
 // ----------------------------------------------------------------------------
 int writeConfig(const char *fn, struct espGwayConfig *c) {
 
 	if (!SPIFFS.exists(fn)) {
 		Serial.print("WARNING:: writeConfig, file not exists, formatting ");
 		SPIFFS.format();
-		// XXX make all initial declarations here if config vars need to have a value
+		initConfig(c);		// XXX make all initial declarations here if config vars need to have a value
 		Serial.println(fn);
 	}
 	File f = SPIFFS.open(fn, "w");
@@ -256,12 +280,17 @@ int writeConfig(const char *fn, struct espGwayConfig *c) {
 }
 
 // ----------------------------------------------------------------------------
-// Add a line with statitics to the log.
+// Add a line with statistics to the log.
 //
 // We put the check in the function to protect against calling 
 // the function without STAT_LOG being proper defined
 // ToDo: Store the fileNo and the fileRec in the status file to save for 
 // restarts
+// Parameters:
+//		line; char array with characters to write to log
+//		cnt;
+// Returns:
+//		<none>
 // ----------------------------------------------------------------------------
 void addLog(const unsigned char * line, int cnt) 
 {
@@ -312,8 +341,10 @@ void addLog(const unsigned char * line, int cnt)
 			Serial.println(fn);
 		}
 #endif
+		return;									// If file open failed, return
 	}
 	
+	int i;
 #if DUSB>=1
 	if (( debug>=1 ) && ( pdebug & P_GUI )) {
 		Serial.print(F("addLog:: fileno="));
@@ -322,8 +353,8 @@ void addLog(const unsigned char * line, int cnt)
 		Serial.print(gwayConfig.logFileRec);
 
 		Serial.print(F(": "));
-		int i;
-		for (i=0; i< 12; i++) {				// The first 12 bytes contain non printble characters
+
+		for (i=0; i< 12; i++) {				// The first 12 bytes contain non printable characters
 			Serial.print(line[i],HEX);
 			Serial.print(' ');
 		}
@@ -333,12 +364,12 @@ void addLog(const unsigned char * line, int cnt)
 	}
 #endif //DUSB
 
-	int i;
-	for (i=0; i< 12; i++) {					// The first 12 bytes contain non printble characters
+
+	for (i=0; i< 12; i++) {					// The first 12 bytes contain non printable characters
 	//	f.print(line[i],HEX);
 		f.print('*');
 	}
-	f.write(&line[i], cnt-12);				// write/append the line to the file
+	f.write(&(line[i]), cnt-12);				// write/append the line to the file
 	f.print('\n');
 	f.close();								// Close the file after appending to it
 

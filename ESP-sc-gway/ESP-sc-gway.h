@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.3.1 H
-// Date: 2018-06-30
+// Version 5.3.2 H
+// Date: 2018-07-07
 //
 // Based on work done by Thomas Telkamp for Raspberry PI 1ch gateway and many others.
 // Contibutions of Dorijan Morelj and Andreas Spies for OLED support.
@@ -11,6 +11,8 @@
 // which accompanies this distribution, and is available at
 // https://opensource.org/licenses/mit-license.php
 //
+// NO WARRANTY OF ANY KIND IS PROVIDED
+//
 // Author: Maarten Westenberg (mw12554@hotmail.com)
 //
 // This file contains a number of compile-time settings that can be set on (=1) or off (=0)
@@ -19,13 +21,13 @@
 //
 // ----------------------------------------------------------------------------------------
 
-#define VERSION "V.5.3.1.H; 180630a"
+#define VERSION "V.5.3.2.H; 1800707a"
 
 // This value of DEBUG determines whether some parts of code get compiled.
 // Also this is the initial value of debug parameter. 
 // The value can be changed using the admin webserver
 // For operational use, set initial DEBUG vaulue 0
-#define DEBUG 0
+#define DEBUG 1
 
 // Debug message will be put on Serial is this one is set.
 // If set to 0, not USB Serial prints are done
@@ -76,7 +78,7 @@
 // connect with USB.
 #define A_OTA 1
 
-// We support two pin-out configurations out-of-the-box: HALLARD and COMPRESULT.
+// We support a few pin-out configurations out-of-the-box: HALLARD, COMPRESULT and TTGO ESP32.
 // If you use one of these two, just set the parameter to the right value.
 // If your pin definitions are different, update the loraModem.h file to reflect these settings.
 //	1: HALLARD
@@ -185,6 +187,10 @@
 //#define _THINGPORT <port>					// e.g. 1700
 //#define _THINGSERVER "<dns.server.com>"	// Server URL of the LoRa-udp.js handler
 
+// This defines whether or not we would use the gateway as 
+// as sort of backend system which decodes messages (see sensor.h file)
+#define _LOCALSERVER 0						// See server definitions for decodes
+
 // Gateway Ident definitions
 #define _DESCRIPTION "ESP Gateway"			// Name of the gateway
 #define _EMAIL "mw12554@hotmail.com"		// Owner
@@ -233,28 +239,8 @@
 // 2: Same as 1, but is nodes NOT in the nodes list below they are NOT
 //		forwarded or counted! (not yet fully implemented)
 #define TRUSTED_NODES 1
-#if TRUSTED_NODES >= 1
-struct nodex  {
-	uint32_t id;
-	char nm[32];
-};
+#define TRUSTED_DECODE 1
 
-// Add all your named and trusted nodes to this list
-nodex nodes[] = {
-	{ 0x260116BD , "lora-34 PIR node" },			// F=0
-	{ 0x26011152 , "lora-35 temp+humi node" },		// F=0
-	{ 0x2601148C , "lora-36 test node" },			// F=0
-	{ 0x26011B90 , "lora-39 temp DS18B20" },		// F=1
-	{ 0x260119A6 , "lora-40 airquality" },			// F=0
-	{ 0x2601117D , "lora-41 temp+humi SR04T" },
-	{ 0x26011514 , "lora-43 ch1, no sensors" },		// F=1
-	{ 0x26011D77 , "lora-45 not sensor" },
-	{ 0x2601160F , "lora-46 HTU21 metal case" },	// F=0
-	{ 0x26011E52 , "lora-53 gas sensor" },			// F=ALL
-	{ 0x02020441 , "lora-65 Waterproof temp humi" },// F=0
-	{ 0x26011999 , "lora-901 distance sensor" }		// F=0
-};
-#endif
 
 // Wifi definitions
 // WPA is an array with SSID and password records. Set WPA size to number of entries in array

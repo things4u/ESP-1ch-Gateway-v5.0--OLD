@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.3.1
-// Date: 2018-06-31
+// Version 5.3.2
+// Date: 2018-07-07
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -10,6 +10,8 @@
 // are made available under the terms of the MIT License
 // which accompanies this distribution, and is available at
 // https://opensource.org/licenses/mit-license.php
+//
+// NO WARRANTY OF ANY KIND IS PROVIDED
 //
 // Author: Maarten Westenberg (mw12554@hotmail.com)
 //
@@ -161,12 +163,12 @@ void SerialStat(uint8_t intr)
 // ----------------------------------------------------------------------------
 // SerialName(id, response)
 // Check whether for address a (4 bytes in Unsigned Long) there is a name
-// This function only works if TRUSTED_NODES is set
+// This function only works if _TRUSTED_NODES is set
 // ----------------------------------------------------------------------------
 
 int SerialName(char * a, String& response)
 {
-#if TRUSTED_NODES>=1
+#if _TRUSTED_NODES>=1
 	uint32_t id = ((a[0]<<24) | (a[1]<<16) | (a[2]<<8) | a[3]);
 
 	int i;
@@ -191,4 +193,23 @@ int SerialName(char * a, String& response)
 	return(-1);									// If no success OR is TRUSTED NODES not defined
 }
 
+// ----------------------------------------------------------------------------
+// inDecodes(id)
+// Find the id in Decodes array, and return the index of the item
+// Parameters:
+//		id: The first field in the array (normally DevAddr id). Must be char[4]
+// Returns:
+//		The index of the ID in the Array. Returns -1 if not found
+// ----------------------------------------------------------------------------
+int inDecodes(char * id) {
 
+	uint32_t ident = ((id[3]<<24) | (id[2]<<16) | (id[1]<<8) | id[0]);
+
+	int i;
+	for ( i=0; i< (sizeof(decodes)/sizeof(codex)); i++) {
+		if (ident == decodes[i].id) {
+			return(i);
+		}
+	}
+	return(-1);
+}

@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.3.1
-// Date: 2018-06-30
+// Version 5.3.2
+// Date: 2018-07-07
 //
 // 	based on work done by many people and making use of several libraries.
 //
@@ -9,6 +9,8 @@
 // are made available under the terms of the MIT License
 // which accompanies this distribution, and is available at
 // https://opensource.org/licenses/mit-license.php
+//
+// NO WARRANTY OF ANY KIND IS PROVIDED
 //
 // Author: Maarten Westenberg (mw12554@hotmail.com)
 //
@@ -77,10 +79,14 @@ boolean YesNo(String s)
 
 
 // ----------------------------------------------------------------------------
-// WWWFILES
+// WWWFILE
 // This function will open a pop-up in the browser and then 
 //	display the contents of a file in that window
 // Output is sent to server.sendContent()
+// Parameters:
+//		fn; String with filename
+// Returns:
+//		<none>
 // ----------------------------------------------------------------------------
 void wwwFile(String fn) {
 
@@ -91,7 +97,7 @@ void wwwFile(String fn) {
 #endif
 		return;
 	}
-#if DUSB>=1
+#if DUSB>=2
 	else {
 		Serial.print(F("wwwButtons:: File existist= "));
 		Serial.println(fn);
@@ -119,16 +125,17 @@ void wwwFile(String fn) {
 
 // ----------------------------------------------------------------------------
 // Button function Stat, display statistics
+// This is a button on the top of the GUI screen.
 // ----------------------------------------------------------------------------
 void buttonStat() 
 {
-	Serial.print(F("Log"));
-	Serial.println();
+	//Serial.print(F("Log"));
+	//Serial.println();
 
-	printLog();
+	//printLog();
 
 	String response = "";
-	response+= "alert('Log');";
+	response+= "<script> confirm('Confirm Log'); </script>";
 	server.sendContent(response);
 
 }
@@ -136,6 +143,7 @@ void buttonStat()
 
 // ----------------------------------------------------------------------------
 // Button gunction Log displays  logfiles.
+// This is a button on the top of the GUI screen
 // ----------------------------------------------------------------------------
 void buttonLog() 
 {
@@ -177,6 +185,11 @@ static void wwwButtons()
 // results are sent back to the web client.
 // Commands: DEBUG, ADDRESS, IP, CONFIG, GETTIME, SETTIME
 // The webpage is completely built response and then printed on screen.
+// Parameters:
+//		cmd: Contains a character array with the command to execute
+//		arg: Contains the parameter value of that command
+// Returns:
+//		<none>
 // ----------------------------------------------------------------------------
 static void setVariables(const char *cmd, const char *arg) {
 
@@ -329,7 +342,7 @@ static void openWebPage()
 
 	response += "<style>.thead {background-color:green; color:white;} ";
 	response += ".cell {border: 1px solid black;}";
-	response += ".config_table {max_width:100%; min-width:400px; width:95%; border:1px solid black; border-collapse:collapse;}";
+	response += ".config_table {max_width:100%; min-width:400px; width:98%; border:1px solid black; border-collapse:collapse;}";
 	response += "</style></HEAD><BODY>";
 	
 	response +="<h1>ESP Gateway Config</h1>";
@@ -774,6 +787,16 @@ static void statisticsData()
 // ----------------------------------------------------------------------------
 // SENSORDATA
 // If enabled, display the sensorHistory on the current webserver Page.
+// In this GUI section a number of statr[x] records are displayed such as:
+//
+// Time, The time the sensor message was received
+// Node, the DevAddr or even Node name for Trusted nodes,
+// Data (Localserver), when _LOCALSERVER is enabled contains decoded data
+// C, Channel frequency on which the sensor was received
+// Freq, The frequency of the channel
+// SF, Spreading Factor
+// pRSSI, Packet RSSI
+//
 // Parameters:
 //	- <none>
 // Returns:
@@ -789,6 +812,9 @@ static void sensorData()
 	response += "<tr>";
 	response += "<th class=\"thead\">Time</th>";
 	response += "<th class=\"thead\">Node</th>";
+#if _LOCALSERVER==1
+	response += "<th class=\"thead\">Data</th>";
+#endif
 	response += "<th class=\"thead\" style=\"width: 20px;\">C</th>";
 	response += "<th class=\"thead\">Freq</th>";
 	response += "<th class=\"thead\" style=\"width: 40px;\">SF</th>";
@@ -806,16 +832,26 @@ static void sensorData()
 		
 		response = "";
 		
-		response += String() + "<tr><td class=\"cell\">";
+		response += String() + "<tr><td class=\"cell\">";					// Tmst
 		stringTime((statr[i].tmst), response);			// XXX Change tmst not to be millis() dependent
 		response += "</td>";
-		response += String() + "<td class=\"cell\">"; 
-
-		if (SerialName((char *)(& (statr[i].node)), response) < 0) {			// works with TRUSTED_NODES >= 1
-			printHEX((char *)(& (statr[i].node)),' ',response);	// else
+		
+		response += String() + "<td class=\"cell\">"; 						// Node
+		if (SerialName((char *)(& (statr[i].node)), response) < 0) {		// works with TRUSTED_NODES >= 1
+			printHEX((char *)(& (statr[i].node)),' ',response);				// else
 		}
-
 		response += "</td>";
+		
+#if _LOCALSERVER==1
+		response += String() + "<td class=\"cell\">";						// Data
+		for (int j=0; j<statr[i].datal; j++) {
+			if (statr[i].data[j] <0x10) response+= "0";
+			response += String(statr[i].data[j],HEX) + " ";
+		}
+		response += "</td>";
+#endif
+
+
 		response += String() + "<td class=\"cell\">" + statr[i].ch + "</td>";
 		response += String() + "<td class=\"cell\">" + freqs[statr[i].ch] + "</td>";
 		response += String() + "<td class=\"cell\">" + statr[i].sf + "</td>";
@@ -1000,6 +1036,7 @@ void setupWWW()
 	server.on("/FORMAT", []() {
 		Serial.print(F("FORMAT ..."));
 		SPIFFS.format();								// Normally disabled. Enable only when SPIFFS corrupt
+		initConfig(&gwayConfig);
 		Serial.println(F("DONE"));
 	});
 	
@@ -1260,9 +1297,10 @@ void setupWWW()
 #endif
 	// Display Statistics
 	server.on("/STAT", []() {
-		server.sendHeader("Location", String("/"), true);
 		buttonStat();
-		server.send ( 302, "text/plain", "");
+		//server.sendHeader("Location", String("/"), true);
+
+		//server.send ( 302, "text/plain", "");
 	});
 	server.on("/LOG", []() {
 		server.sendHeader("Location", String("/"), true);

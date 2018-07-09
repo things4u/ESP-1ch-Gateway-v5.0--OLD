@@ -1,6 +1,6 @@
 # Single Channel LoRaWAN Gateway
 
-Version 5.3.1, June 30, 2018  
+Version 5.3.2, July 07, 2018  
 Author: M. Westenberg (mw12554@hotmail.com)  
 Copyright: M. Westenberg (mw12554@hotmail.com)  
 
@@ -15,6 +15,16 @@ Maintained by Maarten Westenberg (mw12554@hotmail.com)
 
 
 # Release Notes
+
+New features in version 5.3.2 (July 07, 2018)
+- Support for local decoding of sensor messages received by the gateway. 
+	Use #define _LOCALSERVER 1, to enable this functionality. Also specify for each node that you want
+	to inspect the messages from the NwkSKey and AppSKey in the sensor.h file.
+	NOTE: the heap of the ESP32 is much larger than of the ESP8266. SO please be careful not to add too many 
+		features to the "old" gateway modules
+- As a result reworked the sensor functions and changes such as adding/changing DevAddrm NwkSKEY 
+	and AppSKey parameters to several functions
+- Several in-line documentaton enhancements and typos were fixed
 
 New features in version 5.3.1 (June 30, 2018)
 - Included support for T-Beam board including on board GPS sensor (_sensor.ino). #define GATEWAYNODE 1 will

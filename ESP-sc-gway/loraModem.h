@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.3.1
-// Date: 2018-06-30
+// Version 5.3.2
+// Date: 2018-07-07
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many other contributors.
@@ -10,6 +10,8 @@
 // are made available under the terms of the MIT License
 // which accompanies this distribution, and is available at
 // https://opensource.org/licenses/mit-license.php
+//
+// NO WARRANTY OF ANY KIND IS PROVIDED
 //
 // Author: Maarten Westenberg (mw12554@hotmail.com)
 //
@@ -254,7 +256,11 @@ struct stat_t {
 #if RSSI==1
 	int8_t		rssi;						// XXX Can be < -128
 #endif
-	int8_t		prssi;						// XXX Can be < -128	
+	int8_t		prssi;						// XXX Can be < -128
+#if _LOCALSERVER==1
+	uint8_t data[23];						// For memory purposes, only 23 chars
+	uint8_t datal;							// Length of decoded message 1 char
+#endif
 } stat_t;
 
 
@@ -293,6 +299,9 @@ struct stat_c statc;
 
 // History of received uplink messages from nodes
 struct stat_t statr[MAX_STAT];
+
+
+
 
 #else // STATISTICS==0
 struct stat_t	statr[1];					// Always have at least one element to store in

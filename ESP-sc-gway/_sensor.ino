@@ -1,7 +1,7 @@
-// 1-channel LoRa Gateway for ESP8266
+// sensor.ino; 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg
-// Verison 5.3.1
-// Date: 2018-06-30
+// Verison 5.3.2
+// Date: 2018-07-07
 //
 // All rights reserved. This program and the accompanying materials
 // are made available under the terms of the MIT License
@@ -21,13 +21,23 @@
 //	- The battery sensor works by connecting the VCC pin to A0 analog port
 // ============================================================================
 	
+
+
+
 #if GATEWAYNODE==1
 
+//#include "sensor.h"								// Contains definitions for the sensor and TRUSTED info, ilcuded in ESP-sc-gway.ino
 #include "LoRaCode.h"
 
-#if _GPS==1
+unsigned char DevAddr[4]  = _DEVADDR ;				// see ESP-sc-gway.h
+
+
 // Only used by GPS sensor code
-//
+#if _GPS==1
+// ----------------------------------------------------------------------------
+// Smartdelay is a function to delay processing but in the loop get info 
+// from the GPS device
+// ----------------------------------------------------------------------------
 static void smartDelay(unsigned long ms)                
 {
   unsigned long start = millis();
@@ -37,10 +47,10 @@ static void smartDelay(unsigned long ms)
       gps.encode(Serial1.read());
   } while (millis() - start < ms);
 }
-#endif
+#endif //_GPS
 
 
-unsigned char DevAddr[4]  = _DEVADDR ;				// see ESP-sc-gway.h
+
 
 
 // ----------------------------------------------------------------------------
@@ -68,33 +78,50 @@ static int LoRaSensors(uint8_t *buf) {
 	
 	uint8_t tchars = 1;
 	buf[0] = 0x86;									// 134; User code <lCode + len==3 + Parity
-	
+
+#if DUSB>=1
+	if (debug>=0)
+		Serial.print(F("LoRaSensors:: "));
+#endif
+
 #if _BATTERY==1
 #if DUSB>=1
 	if (debug>=0)
-		Serial.println(F("LoRaSensors:: Battery"));
+		Serial.print(F("Battery "));
 #endif
-	buf[tchars]   = 0x80;							// 128; lCode code <battery>
-	buf[tchars+1] = 0x3F;							//  63; lCode code <value>/30
-	tchars+=2;
+#if defined(ARDUINO_ARCH_ESP8266) || defined(ESP32)
+	// For ESP there is no standard battery library
+	// What we do is to measure GPIO35 pin which has a 100K voltage divider
+	pinMode(35, INPUT);
+#if defined(ESP32)
+	int devider=4095;
+#else
+	int devider=1023;
+#endif //ESP32
+	float volts=3.3 * analogRead(35) / 4095 * 2;	// T_Beam connects to GPIO35
+#else
+	// For ESP8266 no sensor defined
+	float volts=0;
+#endif
+	tchars += lcode.eBattery(volts, buf + tchars);
 #endif
 
 #if _GPS==1
 #if DUSB>=1
 	if (debug>=0)
-		Serial.println(F("LoRaSensors:: GPS"));
+		Serial.print(F("GPS "));
 
-	if (debug>=1) {
-		Serial.print("Latitude  : ");
+	if (( debug>=1 ) && ( pdebug & P_MAIN )) {
+		Serial.print("\tLatitude  : ");
 		Serial.println(gps.location.lat(), 5);
-		Serial.print("Longitude : ");
+		Serial.print("\tLongitude : ");
 		Serial.println(gps.location.lng(), 4);
-		Serial.print("Satellites: ");
+		Serial.print("\tSatellites: ");
 		Serial.println(gps.satellites.value());
-		Serial.print("Altitude  : ");
+		Serial.print("\tAltitude  : ");
 		Serial.print(gps.altitude.feet() / 3.2808);
 		Serial.println("M");
-		Serial.print("Time      : ");
+		Serial.print("\tTime      : ");
 		Serial.print(gps.time.hour());
 		Serial.print(":");
 		Serial.print(gps.time.minute());
@@ -113,15 +140,19 @@ static int LoRaSensors(uint8_t *buf) {
 	}
 	
 	// Assuming we have a value, put it in the buf
-	// The layout of thi message is specific to the user,
+	// The layout of this message is specific to the user,
 	// so adapt as needed.
 	tchars += lcode.eGpsL(gps.location.lat(), gps.location.lng(), gps.altitude.value(),
                        gps.satellites.value(), buf + tchars);
 
 #endif
 
-	// If all sensor data is encoded, we encode the buffer
-	
+#if DUSB>=1
+	if (debug>=0)
+		Serial.println();
+#endif
+
+	// If all sensor data is encoded, we encode the buffer	
 	lcode.eMsg(buf, tchars);								// Fill byte 0 with bytecount and Parity
 	
 	return(tchars);	// return the number of bytes added to payload
@@ -215,9 +246,19 @@ static void generate_subkey(uint8_t *key, uint8_t *k1, uint8_t *k2) {
 //
 // cmac = aes128_encrypt(K, Block_A[i])
 // ----------------------------------------------------------------------------
-uint8_t encodePacket(uint8_t *Data, uint8_t DataLength, uint16_t FrameCount, uint8_t Direction) {
+uint8_t encodePacket(uint8_t *Data, uint8_t DataLength, uint16_t FrameCount, uint8_t *DevAddr, uint8_t *AppSKey, uint8_t Direction) {
 
-	unsigned char AppSKey[16] = _APPSKEY ;	// see ESP-sc-gway.h
+#if DUSB>=1
+	if (debug>=2) {
+		Serial.print(F("encodePacket:: DevAddr="));
+		for (int i=0; i<4; i++ ) { Serial.print(DevAddr[i],HEX); Serial.print(' '); }
+		Serial.print(F("encodePacket:: AppSKey="));
+		for (int i=0; i<16; i++ ) { Serial.print(AppSKey[i],HEX); Serial.print(' '); }
+		Serial.println();
+	}
+#endif
+
+	//unsigned char AppSKey[16] = _APPSKEY ;	// see ESP-sc-gway.h
 	uint8_t i, j;
 	uint8_t Block_A[16];
 	uint8_t bLen=16;						// Block length is 16 except for last block in message
@@ -288,10 +329,10 @@ uint8_t encodePacket(uint8_t *Data, uint8_t DataLength, uint16_t FrameCount, uin
 // MIC is cmac [0:3] of ( aes128_cmac(NwkSKey, B0 | Data )
 //
 // ----------------------------------------------------------------------------
-uint8_t micPacket(uint8_t *data, uint8_t len, uint16_t FrameCount, uint8_t dir) {
+uint8_t micPacket(uint8_t *data, uint8_t len, uint16_t FrameCount, uint8_t * NwkSKey, uint8_t dir) {
 
 
-	unsigned char NwkSKey[16] = _NWKSKEY ;
+	//uint8_t NwkSKey[16] = _NWKSKEY;
 	uint8_t Block_B[16];
 	uint8_t X[16];
 	uint8_t Y[16];
@@ -365,7 +406,7 @@ uint8_t micPacket(uint8_t *data, uint8_t len, uint16_t FrameCount, uint8_t dir) 
 
 	// ------------------------------------
 	// Step 4: If there is a rest Block, padd it
-	// Last block. We move step4 to the end as we need Y
+	// Last block. We move step 4 to the end as we need Y
 	// to compute the last block
 	// 
 	if (restBits) {
@@ -410,6 +451,7 @@ uint8_t micPacket(uint8_t *data, uint8_t len, uint16_t FrameCount, uint8_t dir) 
 // ----------------------------------------------------------------------------
 static void checkMic(uint8_t *buf, uint8_t len, uint8_t *key) {
 	uint8_t cBuf[len+1];
+	uint8_t NwkSKey[16] = _NWKSKEY;
 	
 	if (debug>=2) {
 		Serial.print(F("old="));
@@ -423,7 +465,7 @@ static void checkMic(uint8_t *buf, uint8_t len, uint8_t *key) {
 	len -=4;
 	
 	uint16_t FrameCount = ( cBuf[7] * 256 ) + cBuf[6];
-	len += micPacket(cBuf, len, FrameCount, 0);
+	len += micPacket(cBuf, len, FrameCount, NwkSKey, 0);
 	
 	if (debug>=2) {
 		Serial.print(F("new="));
@@ -433,8 +475,9 @@ static void checkMic(uint8_t *buf, uint8_t len, uint8_t *key) {
 		}
 		Serial.println();
 	}
+	// Mic is only checked, but len is not corrected
 }
-#endif
+#endif //_CHECK_MIC
 
 // ----------------------------------------------------------------------------
 // SENSORPACKET
@@ -469,6 +512,9 @@ int sensorPacket() {
 	uint8_t mlength = 0;
 	uint32_t tmst = micros();
 	struct LoraUp LUP;
+	uint8_t NwkSKey[16] = _NWKSKEY;
+	uint8_t AppSKey[16] = _APPSKEY;
+	uint8_t DevAddr[4]  = _DEVADDR;
 	
 	// Init the other LoraUp fields
 	LUP.sf = 8;											// Send with SF8
@@ -508,11 +554,34 @@ int sensorPacket() {
 	// See LoRa spec para 4.3.2
 	// You can add any byte string below based on you personal choice of sensors etc.
 	//
+	
 	// Payload bytes in this example are encoded in the LoRaCode(c) format
 	uint8_t PayLength = LoRaSensors((uint8_t *)(LUP.payLoad + LUP.payLength));
+
+#if DUSB>=1
+	if ((debug>=2) && (pdebug & P_RADIO )) {
+		Serial.print(F("old: "));
+		for (int i=0; i<PayLength; i++) {
+			Serial.print(LUP.payLoad[i],HEX);
+			Serial.print(' ');
+		}
+		Serial.println();
+	}
+#endif	
 	
 	// we have to include the AES functions at this stage in order to generate LoRa Payload.
-	uint8_t CodeLength = encodePacket((uint8_t *)(LUP.payLoad + LUP.payLength), PayLength, (uint16_t)frameCount, 0);
+	uint8_t CodeLength = encodePacket((uint8_t *)(LUP.payLoad + LUP.payLength), PayLength, (uint16_t)frameCount, DevAddr, AppSKey, 0);
+
+#if DUSB>=1
+	if ((debug>=2) && (pdebug & P_RADIO )) {
+		Serial.print(F("new: "));
+		for (int i=0; i<CodeLength; i++) {
+			Serial.print(LUP.payLoad[i],HEX);
+			Serial.print(' ');
+		}
+		Serial.println();
+	}
+#endif
 
 	LUP.payLength += CodeLength;								// length inclusive sensor data
 	
@@ -522,7 +591,18 @@ int sensorPacket() {
 	// Note: Until MIC is done correctly, TTN does not receive these messages
 	//		 The last 4 bytes are MIC bytes.
 	//
-	LUP.payLength += micPacket((uint8_t *)(LUP.payLoad), LUP.payLength, (uint16_t)frameCount, 0);
+	LUP.payLength += micPacket((uint8_t *)(LUP.payLoad), LUP.payLength, (uint16_t)frameCount, NwkSKey, 0);
+
+#if DUSB>=1
+	if ((debug>=2) && (pdebug & P_RADIO )) {
+		Serial.print(F("mic: "));
+		for (int i=0; i<LUP.payLength; i++) {
+			Serial.print(LUP.payLoad[i],HEX);
+			Serial.print(' ');
+		}
+		Serial.println();
+	}
+#endif
 
 	// So now our package is ready, and we can send it up through the gateway interface
 	// Note Be aware that the sensor message (which is bytes) in message will be
@@ -531,6 +611,7 @@ int sensorPacket() {
 	int buff_index = buildPacket(tmst, buff_up, LUP, true);
 	
 	frameCount++;
+    cp_nb_rx_rcv++;	
 	
 	// In order to save the memory, we only write the framecounter
 	// to EEPROM every 10 values. It also means that we will invalidate
@@ -542,13 +623,34 @@ int sensorPacket() {
 		if (debug>0) Serial.println(F("sensorPacket:: ERROR buffer size too large"));
 		return(-1);
 	}
-	
+
+#ifdef _TTNSERVER	
 	if (!sendUdp(ttnServer, _TTNPORT, buff_up, buff_index)) {
 		return(-1);
 	}
+#endif
 #ifdef _THINGSERVER
 	if (!sendUdp(thingServer, _THINGPORT, buff_up, buff_index)) {
 		return(-1);
+	}
+#endif
+
+#if DUSB>=1
+	// If all is right, we should after decoding (which is the same as encoding) get
+	// the original message back again.
+	if ((debug>=2) && (pdebug & P_RADIO )) {
+		CodeLength = encodePacket((uint8_t *)(LUP.payLoad + 9), PayLength, (uint16_t)frameCount-1, DevAddr, AppSKey, 0);
+		Serial.print(F("rev: "));
+		for (int i=0; i<CodeLength; i++) {
+			Serial.print(LUP.payLoad[i],HEX);
+			Serial.print(' ');
+		}
+		Serial.print(F(", addr="));
+		for (int i=0; i<4; i++) {
+			Serial.print(DevAddr[i],HEX);
+			Serial.print(' ');
+		}
+		Serial.println();
 	}
 #endif
 

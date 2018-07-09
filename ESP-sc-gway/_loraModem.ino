@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.3.1
-// Date: 2018-06-30
+// Version 5.3.2
+// Date: 2018-07-07
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -10,6 +10,8 @@
 // are made available under the terms of the MIT License
 // which accompanies this distribution, and is available at
 // https://opensource.org/licenses/mit-license.php
+//
+// NO WARRANTY OF ANY KIND IS PROVIDED
 //
 // Author: Maarten Westenberg (mw12554@hotmail.com)
 //
@@ -371,6 +373,15 @@ void hop() {
 // UP function
 // This is the "lowlevel" receive function called by stateMachine()
 // dealing with the radio specific LoRa functions
+//
+// Parameters:
+//		Payload: uint8_t[] message. when message is read it is returned in payload.
+// Returns:
+//		Length of payload received
+//
+// 9 bytes header
+// followed by data N bytes
+// 4 bytes MIC end
 // ----------------------------------------------------------------------------
 uint8_t receivePkt(uint8_t *payload)
 {
@@ -390,15 +401,11 @@ uint8_t receivePkt(uint8_t *payload)
     {
 #if DUSB>=1
         if (( debug>=0) && ( pdebug & P_RADIO )) {
-			Serial.print(F("RxPkt:: Err CRC, ="));
+			Serial.print(F("rxPkt:: Err CRC, ="));
 			SerialTime();
 			Serial.println();
 		}
 #endif
-		// Reset CRC flag 0x20
-        //writeRegister(REG_IRQ_FLAGS, (uint8_t)(IRQ_LORA_CRCERR_MASK | IRQ_LORA_RXDONE_MASK));	// 0x12; clear CRC (== 0x20) flag
-		//writeRegister(REG_IRQ_FLAGS_MASK, (uint8_t) 0x00);
-		//writeRegister(REG_IRQ_FLAGS, (uint8_t) 0xFF);								// XXX 180324 done in state machine
 		return 0;
     }
 	
@@ -409,7 +416,7 @@ uint8_t receivePkt(uint8_t *payload)
     {
 #if DUSB>=1
         if (( debug>=0) && ( pdebug & P_RADIO )) {
-			Serial.println(F("RxPkt:: Err HEADER"));
+			Serial.println(F("rxPkt:: Err HEADER"));
 		}
 #endif
 		// Reset VALID-HEADER flag 0x10
@@ -423,7 +430,7 @@ uint8_t receivePkt(uint8_t *payload)
         cp_nb_rx_ok++;													// Receive OK statistics counter
 
 		if (readRegister(REG_FIFO_RX_CURRENT_ADDR) != readRegister(REG_FIFO_RX_BASE_AD)) {
-			if (debug>=1) {
+			if (( debug>=0 ) && ( pdebug & P_RADIO )) {
 				Serial.print(F("RX BASE <"));
 				Serial.print(readRegister(REG_FIFO_RX_BASE_AD));
 				Serial.print(F("> != RX CURRENT <"));
@@ -460,6 +467,9 @@ uint8_t receivePkt(uint8_t *payload)
         }
 
 		writeRegister(REG_IRQ_FLAGS, (uint8_t) 0xFF);		// Reset ALL interrupts
+		
+		// A long as DUSB is enabled, and RX debug messages are selected,
+		//the received packet is displayed on the output.
 #if DUSB>=1
 		if (( debug>=0 ) && ( pdebug & P_RX )){
 		
@@ -482,15 +492,81 @@ uint8_t receivePkt(uint8_t *payload)
 			Serial.print(F(", len="));
 			Serial.print(receivedCount);
 
+			// If debug level 1 is specified, we display the content of the message as well
+			// We need to decode the message as well will it make any sense
+
+			if (debug>=1)  {							// Must be 1 for operational use
+#if _TRUSTED_DECODE==2
+				int index;								// The index of the codex struct to decode
+				String response="";
+
+				uint8_t data[receivedCount];
+				
+				uint8_t DevAddr [4];
+					DevAddr[0] = payload[4];
+					DevAddr[1] = payload[3];
+					DevAddr[2] = payload[2];
+					DevAddr[3] = payload[1];
+				
+				if ((index = inDecodes((char *)(payload+1))) >=0 ) {
+					Serial.print(F(", Ind="));
+					Serial.print(index);
+					//Serial.println();
+				}
+				else if (debug>=1) {
+					Serial.print(F(", No Index"));
+					Serial.println();
+					return(receivedCount);
+				}	
+
+				// ------------------------------
+				
+				Serial.print(F(", data="));
+				for (int i=0; i<receivedCount; i++) { data[i] = payload[i]; }		// Copy array
+				
+				//for (int i=0; i<receivedCount; i++) {
+				//	if (payload[i]<=0xF) Serial.print('0');
+				//	Serial.print(payload[i], HEX);
+				//	Serial.print(' ');
+				//}
+
+
+
+				uint16_t frameCount=payload[7]*256 + payload[6];
+				
+				// The message received has a length, but data starts at byte 9, and stops 4 bytes
+				// before the end since those are MIC bytes
+				uint8_t CodeLength = encodePacket((uint8_t *)(data + 9), receivedCount-9-4, (uint16_t)frameCount, DevAddr, decodes[index].appKey, 0);
+
+				Serial.print(F("- NEW fc="));
+				Serial.print(frameCount);
+				Serial.print(F(", addr="));
+				
+				for (int i=0; i<4; i++) {
+					if (DevAddr[i]<=0xF) Serial.print('0');
+					Serial.print(DevAddr[i], HEX);
+					Serial.print(' ');
+				}
+				
+				Serial.print(F(", len="));
+				Serial.print(CodeLength);
+				Serial.print(F(", data="));
+
+				for (int i=0; i<receivedCount; i++) {
+					if (data[i]<=0xF) Serial.print('0');
+					Serial.print(data[i], HEX);
+					Serial.print(' ');
+				}
+#endif // _TRUSTED_DECODE
+			}
+			
 			Serial.println();
 			
 			if (debug>=2) Serial.flush();
 		}
-#endif
+#endif //DUSB
 		return(receivedCount);
     }
-
-
 
 	writeRegister(REG_IRQ_FLAGS, (uint8_t) (
 		IRQ_LORA_RXDONE_MASK | 
@@ -498,7 +574,7 @@ uint8_t receivePkt(uint8_t *payload)
 		IRQ_LORA_HEADER_MASK | 
 		IRQ_LORA_CRCERR_MASK));							// 0x12; Clear RxDone IRQ_LORA_RXDONE_MASK
     return 0;
-}
+} //receivePkt
 	
 	
 	
