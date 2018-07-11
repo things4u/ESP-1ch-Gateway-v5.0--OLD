@@ -21,12 +21,8 @@
 //	- The battery sensor works by connecting the VCC pin to A0 analog port
 // ============================================================================
 	
-
-
-
 #if GATEWAYNODE==1
 
-//#include "sensor.h"								// Contains definitions for the sensor and TRUSTED info, ilcuded in ESP-sc-gway.ino
 #include "LoRaCode.h"
 
 unsigned char DevAddr[4]  = _DEVADDR ;				// see ESP-sc-gway.h
@@ -220,90 +216,6 @@ static void generate_subkey(uint8_t *key, uint8_t *k1, uint8_t *k2) {
 	
 	// step 4: Done, return k1 and k2
 	return;
-}
-
-
-// ----------------------------------------------------------------------------
-// ENCODEPACKET
-// In Sensor mode, we have to encode the user payload before sending.
-// The library files for AES are added to the library directory in AES.
-// For the moment we use the AES library made by ideetron as this library
-// is also used in the LMIC stack and is small in size.
-//
-// The function below follows the LoRa spec exactly.
-//
-// The resulting mumber of Bytes is returned by the functions. This means
-// 16 bytes per block, and as we add to the last block we also return 16
-// bytes for the last block.
-//
-// The LMIC code does not do this, so maybe we shorten the last block to only
-// the meaningful bytes in the last block. This means that encoded buffer
-// is exactly as big as the original message.
-//
-// NOTE:: Be aware that the LICENSE of the used AES library files 
-//	that we call with AES_Encrypt() is GPL3. It is used as-is,
-//  but not part of this code.
-//
-// cmac = aes128_encrypt(K, Block_A[i])
-// ----------------------------------------------------------------------------
-uint8_t encodePacket(uint8_t *Data, uint8_t DataLength, uint16_t FrameCount, uint8_t *DevAddr, uint8_t *AppSKey, uint8_t Direction) {
-
-#if DUSB>=1
-	if (debug>=2) {
-		Serial.print(F("encodePacket:: DevAddr="));
-		for (int i=0; i<4; i++ ) { Serial.print(DevAddr[i],HEX); Serial.print(' '); }
-		Serial.print(F("encodePacket:: AppSKey="));
-		for (int i=0; i<16; i++ ) { Serial.print(AppSKey[i],HEX); Serial.print(' '); }
-		Serial.println();
-	}
-#endif
-
-	//unsigned char AppSKey[16] = _APPSKEY ;	// see ESP-sc-gway.h
-	uint8_t i, j;
-	uint8_t Block_A[16];
-	uint8_t bLen=16;						// Block length is 16 except for last block in message
-		
-	uint8_t restLength = DataLength % 16;	// We work in blocks of 16 bytes, this is the rest
-	uint8_t numBlocks  = DataLength / 16;	// Number of whole blocks to encrypt
-	if (restLength>0) numBlocks++;			// And add block for the rest if any
-
-	for(i = 1; i <= numBlocks; i++) {
-		Block_A[0] = 0x01;
-		
-		Block_A[1] = 0x00; 
-		Block_A[2] = 0x00; 
-		Block_A[3] = 0x00; 
-		Block_A[4] = 0x00;
-
-		Block_A[5] = Direction;				// 0 is uplink
-
-		Block_A[6] = DevAddr[3];			// Only works for and with ABP
-		Block_A[7] = DevAddr[2];
-		Block_A[8] = DevAddr[1];
-		Block_A[9] = DevAddr[0];
-
-		Block_A[10] = (FrameCount & 0x00FF);
-		Block_A[11] = ((FrameCount >> 8) & 0x00FF);
-		Block_A[12] = 0x00; 				// Frame counter upper Bytes
-		Block_A[13] = 0x00;					// These are not used so are 0
-
-		Block_A[14] = 0x00;
-
-		Block_A[15] = i;
-
-		// Encrypt and calculate the S
-		AES_Encrypt(Block_A, AppSKey);
-		
-		// Last block? set bLen to rest
-		if ((i == numBlocks) && (restLength>0)) bLen = restLength;
-		
-		for(j = 0; j < bLen; j++) {
-			*Data = *Data ^ Block_A[j];
-			Data++;
-		}
-	}
-	//return(numBlocks*16);			// Do we really want to return all 16 bytes in lastblock
-	return(DataLength);				// or only 16*(numBlocks-1)+bLen;
 }
 
 
@@ -670,3 +582,90 @@ int sensorPacket() {
 }
 
 #endif //GATEWAYNODE==1
+
+#if (GATEWAYNODE==1) || (_LOCALSERVER==1)
+// ----------------------------------------------------------------------------
+// ENCODEPACKET
+// In Sensor mode, we have to encode the user payload before sending.
+// The same applies to decoding packages in the payload for _LOCALSERVER.
+// The library files for AES are added to the library directory in AES.
+// For the moment we use the AES library made by ideetron as this library
+// is also used in the LMIC stack and is small in size.
+//
+// The function below follows the LoRa spec exactly.
+//
+// The resulting mumber of Bytes is returned by the functions. This means
+// 16 bytes per block, and as we add to the last block we also return 16
+// bytes for the last block.
+//
+// The LMIC code does not do this, so maybe we shorten the last block to only
+// the meaningful bytes in the last block. This means that encoded buffer
+// is exactly as big as the original message.
+//
+// NOTE:: Be aware that the LICENSE of the used AES library files 
+//	that we call with AES_Encrypt() is GPL3. It is used as-is,
+//  but not part of this code.
+//
+// cmac = aes128_encrypt(K, Block_A[i])
+// ----------------------------------------------------------------------------
+uint8_t encodePacket(uint8_t *Data, uint8_t DataLength, uint16_t FrameCount, uint8_t *DevAddr, uint8_t *AppSKey, uint8_t Direction) {
+
+#if DUSB>=1
+	if (debug>=2) {
+		Serial.print(F("encodePacket:: DevAddr="));
+		for (int i=0; i<4; i++ ) { Serial.print(DevAddr[i],HEX); Serial.print(' '); }
+		Serial.print(F("encodePacket:: AppSKey="));
+		for (int i=0; i<16; i++ ) { Serial.print(AppSKey[i],HEX); Serial.print(' '); }
+		Serial.println();
+	}
+#endif
+
+	//unsigned char AppSKey[16] = _APPSKEY ;	// see ESP-sc-gway.h
+	uint8_t i, j;
+	uint8_t Block_A[16];
+	uint8_t bLen=16;						// Block length is 16 except for last block in message
+		
+	uint8_t restLength = DataLength % 16;	// We work in blocks of 16 bytes, this is the rest
+	uint8_t numBlocks  = DataLength / 16;	// Number of whole blocks to encrypt
+	if (restLength>0) numBlocks++;			// And add block for the rest if any
+
+	for(i = 1; i <= numBlocks; i++) {
+		Block_A[0] = 0x01;
+		
+		Block_A[1] = 0x00; 
+		Block_A[2] = 0x00; 
+		Block_A[3] = 0x00; 
+		Block_A[4] = 0x00;
+
+		Block_A[5] = Direction;				// 0 is uplink
+
+		Block_A[6] = DevAddr[3];			// Only works for and with ABP
+		Block_A[7] = DevAddr[2];
+		Block_A[8] = DevAddr[1];
+		Block_A[9] = DevAddr[0];
+
+		Block_A[10] = (FrameCount & 0x00FF);
+		Block_A[11] = ((FrameCount >> 8) & 0x00FF);
+		Block_A[12] = 0x00; 				// Frame counter upper Bytes
+		Block_A[13] = 0x00;					// These are not used so are 0
+
+		Block_A[14] = 0x00;
+
+		Block_A[15] = i;
+
+		// Encrypt and calculate the S
+		AES_Encrypt(Block_A, AppSKey);
+		
+		// Last block? set bLen to rest
+		if ((i == numBlocks) && (restLength>0)) bLen = restLength;
+		
+		for(j = 0; j < bLen; j++) {
+			*Data = *Data ^ Block_A[j];
+			Data++;
+		}
+	}
+	//return(numBlocks*16);			// Do we really want to return all 16 bytes in lastblock
+	return(DataLength);				// or only 16*(numBlocks-1)+bLen;
+}
+
+#endif

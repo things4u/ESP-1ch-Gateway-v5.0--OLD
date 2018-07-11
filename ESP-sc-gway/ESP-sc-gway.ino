@@ -67,7 +67,7 @@ extern "C" {
 #include <WiFiManager.h>						// Library for ESP WiFi config through an AP
 #endif
 
-#if GATEWAYNODE==1
+#if (GATEWAYNODE==1) || (_LOCALSERVER==1)
 #include "AES-128_V10.h"
 #endif
 
