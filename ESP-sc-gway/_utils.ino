@@ -193,6 +193,7 @@ int SerialName(char * a, String& response)
 	return(-1);									// If no success OR is TRUSTED NODES not defined
 }
 
+#if _LOCALSERVER==1
 // ----------------------------------------------------------------------------
 // inDecodes(id)
 // Find the id in Decodes array, and return the index of the item
@@ -213,3 +214,4 @@ int inDecodes(char * id) {
 	}
 	return(-1);
 }
+#endif
