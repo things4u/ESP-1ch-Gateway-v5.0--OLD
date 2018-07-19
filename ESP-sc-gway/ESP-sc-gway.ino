@@ -76,7 +76,7 @@ extern "C" {
 #if ESP32_ARCH==1								// IF ESP32
 
 #include "WiFi.h"
-#include <WiFIClient.h>
+#include <WiFiClient.h>
 #include <ESPmDNS.h>
 #include <SPIFFS.h>
 #if A_SERVER==1

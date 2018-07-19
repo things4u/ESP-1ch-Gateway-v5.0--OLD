@@ -44,7 +44,7 @@ void id_print (String id, String val) {
 // ----------------------------------------------------------------------------
 int initConfig(struct espGwayConfig *c) {
 	(*c).ch = 0;
-	(*c).sf = SF8;
+	(*c).sf = _SPREADING;
 	(*c).debug = 1;
 	(*c).pdebug = P_GUI;
 	(*c).cad = _CAD;
