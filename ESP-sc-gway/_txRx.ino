@@ -466,8 +466,7 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 	}
 #endif
 	buff_index += j;
-	ftoa((double)freq/1000000,cfreq,6);					// XXX This can be done better
-	j = snprintf((char *)(buff_up + buff_index), TX_BUFF_SIZE-buff_index, ",\"chan\":%1u,\"rfch\":%1u,\"freq\":%s", 0, 0, cfreq);
+	j = snprintf((char *)(buff_up + buff_index), TX_BUFF_SIZE-buff_index, ",\"chan\":%1u,\"rfch\":%1u,\"freq\":%.2f", 0, 0, freq / 1000000.0);
 	buff_index += j;
 	memcpy((void *)(buff_up + buff_index), (void *)",\"stat\":1", 9);
 	buff_index += 9;

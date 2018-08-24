@@ -431,6 +431,9 @@ static void settingsData()
 	}
 	else {
 		response += String() + ifreq; 
+		response += " [ "; 
+		response += String() + freqs[ifreq]; 
+		response += " ]"; 
 		response +="</td>";
 		response +="<td class=\"cell\"><a href=\"FREQ=-1\"><button>-</button></a></td>";
 		response +="<td class=\"cell\"><a href=\"FREQ=1\"><button>+</button></a></td>";
