@@ -702,9 +702,12 @@ void txLoraModem(uint8_t *payLoad, uint8_t payLength, uint32_t tmst, uint8_t sfT
 #endif
 	_state = S_TX;
 
-	bool bw500_4_5 = true;	
+	bool bw500_4_5 = false;	
+
 #if _STRICT_1CH
   bw500_4_5 = false;
+#elif _LFREQ==915
+  bw500_4_5 = true;
 #endif
 
 	// 1. Select LoRa modem from sleep mode
