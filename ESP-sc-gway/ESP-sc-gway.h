@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.3.2 H
-// Date: 2018-07-07
+// Version 5.3.3 H
+// Date: 2018-08-25
 //
 // Based on work done by Thomas Telkamp for Raspberry PI 1ch gateway and many others.
 // Contibutions of Dorijan Morelj and Andreas Spies for OLED support.
@@ -21,7 +21,7 @@
 //
 // ----------------------------------------------------------------------------------------
 
-#define VERSION "V.5.3.2.H; 1800707a"
+#define VERSION "V.5.3.3.H; 180825a"
 
 // This value of DEBUG determines whether some parts of code get compiled.
 // Also this is the initial value of debug parameter. 
@@ -216,7 +216,7 @@
 
 #if GATEWAYNODE==1
 #define _DEVADDR { 0x26, 0x01, 0x01, 0x01 }
-#define _APPSKEY { 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
+#define _APPSKEY { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
 #define _NWKSKEY { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
 #define _SENSOR_INTERVAL 300
 // For ESP32 based TTGO boards these two are normally included

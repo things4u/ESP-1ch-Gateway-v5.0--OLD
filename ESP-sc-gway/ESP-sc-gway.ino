@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.3.2
-// Date: 2018-07-07
+// Version 5.3.3
+// Date: 2018-08-25
 // Author: Maarten Westenberg (mw12554@hotmail.com)
 //
 // Based on work done by Thomas Telkamp for Raspberry PI 1-ch gateway and many others.
@@ -72,7 +72,7 @@ extern "C" {
 #endif
 
 
-
+// ----------- Specific ESP32 stuff --------------
 #if ESP32_ARCH==1								// IF ESP32
 
 #include "WiFi.h"
@@ -88,6 +88,7 @@ extern "C" {
 #include <ArduinoOTA.h>
 #endif//OTA
 
+// ----------- Generic ESP8266 stuff --------------
 #else
 
 #include <ESP8266WiFi.h>						// Which is specific for ESP8266
@@ -106,7 +107,8 @@ extern "C" {
 #endif//OTA
 
 #endif//ESP_ARCH
-	
+
+// ----------- Declaration of vars --------------
 uint8_t debug=1;								// Debug level! 0 is no msgs, 1 normal, 2 extensive
 uint8_t pdebug=0xFF;							// Allow all atterns (departments)
 
@@ -130,7 +132,6 @@ using namespace std;
 
 byte currentMode = 0x81;
 
-//char b64[256];
 bool sx1272 = true;								// Actually we use sx1276/RFM95
 
 uint32_t cp_nb_rx_rcv;							// Number of messages received by gateway
@@ -393,7 +394,7 @@ time_t getNtpTime()
     if (!sendNtpRequest(ntpServer))					// Send the request for new time
 	{
 		if (( debug>=0 ) && ( pdebug & P_MAIN ))
-			Serial.println(F("sendNtpRequest failed"));
+			Serial.println(F("M sendNtpRequest failed"));
 		return(0);
 	}
 	
@@ -434,7 +435,7 @@ time_t getNtpTime()
 	gwayConfig.ntpErrTime = now();
 #if DUSB>=1
 	if (( debug>=0 ) && ( pdebug & P_MAIN )) {
-		Serial.println(F("getNtpTime:: read failed"));
+		Serial.println(F("M getNtpTime:: read failed"));
 	}
 #endif
 	return(0); 										// return 0 if unable to get the time
@@ -503,7 +504,7 @@ int readUdp(int packetSize)
 	// In practice however this can be any sender!
 	if (Udp.read(buff_down, packetSize) < packetSize) {
 #if DUSB>=1
-		Serial.println(F("readUsb:: Reading less chars"));
+		Serial.println(F("A readUsb:: Reading less chars"));
 		return(-1);
 #endif
 	}
@@ -517,8 +518,8 @@ int readUdp(int packetSize)
 	if (remotePortNo == 123) {
 		// This is an NTP message arriving
 #if DUSB>=1
-		if (debug>0) {
-			Serial.println(F("readUdp:: NTP msg rcvd"));
+		if ( debug>=0 ) {
+			Serial.println(F("A readUdp:: NTP msg rcvd"));
 		}
 #endif
 		gwayConfig.ntpErr++;
@@ -533,6 +534,13 @@ int readUdp(int packetSize)
 		token = buff_down[2]*256 + buff_down[1];
 		ident = buff_down[3];
 
+#if DUSB>=1
+	if ((debug>1) && (pdebug & P_MAIN)) {
+		Serial.print(F("M readUdp:: message waiting="));
+		Serial.print(ident);
+		Serial.println();
+	}
+#endif
 		// now parse the message type from the server (if any)
 		switch (ident) {
 
@@ -560,8 +568,8 @@ int readUdp(int packetSize)
 		// (sensor) message sent with the code above.
 		case PKT_PUSH_ACK:	// 0x01 DOWN
 #if DUSB>=1
-			if (debug >= 2) {
-				Serial.print(F("PKT_PUSH_ACK:: size ")); 
+			if (( debug>=2) && (pdebug & P_MAIN )) {
+				Serial.print(F("M PKT_PUSH_ACK:: size ")); 
 				Serial.print(packetSize);
 				Serial.print(F(" From ")); 
 				Serial.print(remoteIpNo);
@@ -585,20 +593,25 @@ int readUdp(int packetSize)
 		// XXX This message format may also be used for other downstream communucation
 		case PKT_PULL_RESP:	// 0x03 DOWN
 #if DUSB>=1
-			if (debug>=0) {
-				Serial.println(F("PKT_PULL_RESP:: received"));
+			if (( debug>=0 ) && ( pdebug & P_MAIN )) {
+				Serial.println(F("M readUdp:: PKT_PULL_RESP received"));
 			}
 #endif
 //			lastTmst = micros();					// Store the tmst this package was received
 			
-			// Send to the LoRa Node first (timing) and then do messaging
+			// Send to the LoRa Node first (timing) and then do reporting to Serial
 			_state=S_TX;
 			sendTime = micros();					// record when we started sending the message
 			
 			if (sendPacket(data, packetSize-4) < 0) {
+#if DUSB>=1
+				if ( debug>=0 ) {
+					Serial.println(F("A readUdp:: Error: PKT_PULL_RESP sendPacket failed"));
+				}
+#endif
 				return(-1);
 			}
-		
+
 			// Now respond with an PKT_TX_ACK; 0x04 UP
 			buff[0]=buff_down[0];
 			buff[1]=buff_down[1];
@@ -616,7 +629,7 @@ int readUdp(int packetSize)
 			buff[12]=0;
 #if DUSB>=1
 			if (( debug >= 2 ) && ( pdebug & P_MAIN )) {
-				Serial.println(F("readUdp:: TX buff filled"));
+				Serial.println(F("M readUdp:: TX buff filled"));
 			}
 #endif
 			// Only send the PKT_PULL_ACK to the UDP socket that just sent the data!!!
@@ -624,13 +637,13 @@ int readUdp(int packetSize)
 			if (Udp.write((unsigned char *)buff, 12) != 12) {
 #if DUSB>=1
 				if (debug>=0)
-					Serial.println("PKT_PULL_ACK:: Error UDP write");
+					Serial.println("A readUdp:: Error: PKT_PULL_ACK UDP write");
 #endif
 			}
 			else {
 #if DUSB>=1
-				if (debug>=0) {
-					Serial.print(F("PKT_TX_ACK:: tmst="));
+				if (( debug>=0 ) && ( pdebug & P_TX )) {
+					Serial.print(F("M PKT_TX_ACK:: micros="));
 					Serial.println(micros());
 				}
 #endif
@@ -638,15 +651,16 @@ int readUdp(int packetSize)
 
 			if (!Udp.endPacket()) {
 #if DUSB>=1
-				if (debug>=0)
-					Serial.println(F("PKT_PULL_DATALL Error Udp.endpaket"));
+				if (( debug>=0 ) && ( pdebug & P_MAIN )) {
+					Serial.println(F("M PKT_PULL_DATALL Error Udp.endpaket"));
+				}
 #endif
 			}
 			
 			yield();
 #if DUSB>=1
-			if (debug >=1) {
-				Serial.print(F("PKT_PULL_RESP:: size ")); 
+			if (( debug >=1 ) && (pdebug & P_MAIN )) {
+				Serial.print(F("M PKT_PULL_RESP:: size ")); 
 				Serial.print(packetSize);
 				Serial.print(F(" From ")); 
 				Serial.print(remoteIpNo);
@@ -663,8 +677,8 @@ int readUdp(int packetSize)
 	
 		case PKT_PULL_ACK:	// 0x04 DOWN; the server sends a PULL_ACK to confirm PULL_DATA receipt
 #if DUSB>=1
-			if (debug >= 2) {
-				Serial.print(F("PKT_PULL_ACK:: size ")); Serial.print(packetSize);
+			if (( debug >= 2 ) && (pdebug & P_MAIN )) {
+				Serial.print(F("M PKT_PULL_ACK:: size ")); Serial.print(packetSize);
 				Serial.print(F(" From ")); Serial.print(remoteIpNo);
 				Serial.print(F(", port ")); Serial.print(remotePortNo);	
 				Serial.print(F(", data: "));
@@ -720,8 +734,10 @@ int sendUdp(IPAddress server, int port, uint8_t *msg, int length) {
 	// Check whether we are conected to Wifi and the internet
 	if (WlanConnect(3) < 0) {
 #if DUSB>=1
-		Serial.print(F("sendUdp: ERROR connecting to WiFi"));
-		Serial.flush();
+		if (( debug>=0 ) && ( pdebug & P_MAIN )) {
+			Serial.print(F("M sendUdp: ERROR connecting to WiFi"));
+			Serial.flush();
+		}
 #endif
 		Udp.flush();
 		yield();
@@ -732,12 +748,15 @@ int sendUdp(IPAddress server, int port, uint8_t *msg, int length) {
 
 	//send the update
 #if DUSB>=1
-	if (debug>=2) Serial.println(F("WiFi connected"));
-
+	if (( debug>=3 ) && ( pdebug & P_MAIN )) {
+		Serial.println(F("M WiFi connected"));
+	}
 #endif	
 	if (!Udp.beginPacket(server, (int) port)) {
 #if DUSB>=1
-		if (debug>=1) Serial.println(F("sendUdp:: Error Udp.beginPacket"));
+		if (( debug>=1 ) && ( pdebug & P_MAIN )) {
+			Serial.println(F("M sendUdp:: Error Udp.beginPacket"));
+		}
 #endif
 		return(0);
 	}
@@ -747,7 +766,9 @@ int sendUdp(IPAddress server, int port, uint8_t *msg, int length) {
 
 	if (Udp.write((unsigned char *)msg, length) != length) {
 #if DUSB>=1
-		Serial.println(F("sendUdp:: Error write"));
+		if (( debug<=1 ) && ( pdebug & P_MAIN )) {
+			Serial.println(F("M sendUdp:: Error write"));
+		}
 #endif
 		Udp.endPacket();						// Close UDP
 		return(0);								// Return error
@@ -857,9 +878,9 @@ void pullData() {
 #endif
 
 #if DUSB>=1
-    if (debug>= 2) {
+    if (( debug>=2 ) && ( pdebug & P_MAIN )) {
 		yield();
-		Serial.print(F("PKT_PULL_DATA request, len=<"));
+		Serial.print(F("M PKT_PULL_DATA request, len=<"));
 		Serial.print(pullIndex);
 		Serial.print(F("> "));
 		for (i=0; i<pullIndex; i++) {
@@ -931,15 +952,18 @@ void sendstat() {
     stat_index += j;
     status_report[stat_index] = 0; 							// add string terminator, for safety
 
-    if (debug>=2) {
-		Serial.print(F("stat update: <"));
+#if DUSB>=1
+    if (( debug>=2 ) && ( pdebug & P_MAIN )) {
+		Serial.print(F("M stat update: <"));
 		Serial.print(stat_index);
 		Serial.print(F("> "));
 		Serial.println((char *)(status_report+12));			// DEBUG: display JSON stat
 	}
-	
+#endif	
 	if (stat_index > STATUS_SIZE) {
-		Serial.println(F("sendstat:: ERROR buffer too big"));
+#if DUSB>=1
+		Serial.println(F("A sendstat:: ERROR buffer too big"));
+#endif
 		return;
 	}
 	
@@ -1012,7 +1036,7 @@ void setup() {
 #if _SPIFF_FORMAT>=1
 #if DUSB>=1
 	if (( debug >= 0 ) && ( pdebug & P_MAIN )) {
-		Serial.println(F("Format Filesystem ... "));
+		Serial.println(F("M Format Filesystem ... "));
 	}
 #endif
 	SPIFFS.format();								// Normally disabled. Enable only when SPIFFS corrupt
@@ -1173,7 +1197,7 @@ void setup() {
 	while (timeStatus() == timeNotSet) {
 #if DUSB>=1
 		if (( debug>=0 ) && ( pdebug & P_MAIN )) 
-			Serial.println(F("setupTime:: Time not set (yet)"));
+			Serial.println(F("M setupTime:: Time not set (yet)"));
 #endif
 		delay(500);
 		time_t newTime;
@@ -1268,27 +1292,26 @@ void loop ()
 	// in userspace in loop().
 	//
 	stateMachine();									// do the state machine
-
 	
 	// After a quiet period, make sure we reinit the modem and state machine.
 	// The interval is in seconds (about 15 seconds) as this re-init
 	// is a heavy operation. 
-	// SO it will kick in if there are not many messages for the gatway.
-	// Note: Be carefull that it does not happen too often in normal operation.
+	// SO it will kick in if there are not many messages for the gateway.
+	// Note: Be careful that it does not happen too often in normal operation.
 	//
 	if ( ((nowSeconds - statr[0].tmst) > _MSG_INTERVAL ) &&
-		(msgTime < statr[0].tmst) ) 
+		(msgTime <= statr[0].tmst) ) 
 	{
 #if DUSB>=1
 		if (( debug>=1 ) && ( pdebug & P_MAIN )) {
-			Serial.print("REINIT:: ");
+			Serial.print("M REINIT:: ");
 			Serial.print( _MSG_INTERVAL );
 			Serial.print(F(" "));
 			SerialStat(0);
 		}
 #endif
 
-		// startReveiver() ??
+		// startReceiver() ??
 		if ((_cad) || (_hop)) {
 			_state = S_SCAN;
 			sf = SF7;
@@ -1313,7 +1336,7 @@ void loop ()
 
 #if A_OTA==1
 	// Perform Over the Air (OTA) update if enabled and requested by user.
-	// It is important to put this function at the start of loop() as it is
+	// It is important to put this function early in loop() as it is
 	// not called frequently but it should always run when called.
 	//
 	yield();
@@ -1325,7 +1348,9 @@ void loop ()
 	// reloop here for timing purposes. 
 	// Do as less yield() as possible.
 	// XXX 180326
-	if (_event == 1) return;
+	if (_event == 1) {
+		return;
+	}
 	else yield();
 
 	
@@ -1334,7 +1359,7 @@ void loop ()
 	if (WlanConnect(1) < 0) {
 #if DUSB>=1
 		if (( debug >= 0 ) && ( pdebug & P_MAIN ))
-			Serial.println(F("loop: ERROR reconnect WLAN"));
+			Serial.println(F("M ERROR reconnect WLAN"));
 #endif
 		yield();
 		return;										// Exit loop if no WLAN connected
@@ -1351,34 +1376,22 @@ void loop ()
 #if DUSB>=2
 			Serial.println(F("loop:: readUdp calling"));
 #endif
+			// DOWNSTREAM
 			// Packet may be PKT_PUSH_ACK (0x01), PKT_PULL_ACK (0x03) or PKT_PULL_RESP (0x04)
 			// This command is found in byte 4 (buffer[3])
 			if (readUdp(packetSize) <= 0) {
 #if DUSB>=1
 				if (( debug>0 ) && ( pdebug & P_MAIN ))
-					Serial.println(F("readUDP error"));
+					Serial.println(F("M readUDP error"));
 #endif
 				break;
 			}
-			// Now we know we succesfull received message from host
+			// Now we know we succesfully received message from host
 			else {
 				//_event=1;								// Could be done double if more messages received
 			}
 		}
 	}
-	
-	// After sending a message with S_TX, we have to receive a TXDONE interrupt
-	// within 7 seconds according to spec, of we have a problem.
-	if ( sendTime > micros() ) sendTime = 0;
-	if (( _state == S_TXDONE ) && (( micros() - sendTime) > 7000000 )) {
-		startReceiver();
-#if DUSB>=1
-		if (( debug >= 1 ) && ( pdebug & P_MAIN )) {
-			Serial.println(F("Main:: reset TX"));
-		}
-#endif
-	}
-	
 	
 	yield();					// XXX 26/12/2017
 
@@ -1388,14 +1401,14 @@ void loop ()
     if ((nowSeconds - statTime) >= _STAT_INTERVAL) {	// Wake up every xx seconds
 #if DUSB>=1
 		if (( debug>=1 ) && ( pdebug & P_MAIN )) {
-			Serial.print(F("STAT:: ..."));
+			Serial.print(F("M STAT:: ..."));
 			Serial.flush();
 		}
 #endif
         sendstat();										// Show the status message and send to server
 #if DUSB>=1
 		if (( debug>=1 ) && ( pdebug & P_MAIN )) {
-			Serial.println(F("done"));
+			Serial.println(F(" done"));
 			if (debug>=2) Serial.flush();
 		}
 #endif	
@@ -1407,7 +1420,7 @@ void loop ()
 		//
 #if GATEWAYNODE==1
 		if (gwayConfig.isNode) {
-			// Give way to internal Admin if necessary
+			// Give way to internal some Admin if necessary
 			yield();
 			
 			// If the 1ch gateway is a sensor itself, send the sensor values
@@ -1432,18 +1445,13 @@ void loop ()
     if ((nowSeconds - pulltime) >= _PULL_INTERVAL) {	// Wake up every xx seconds
 #if DUSB>=1
 		if (( debug>=2) && ( pdebug & P_MAIN )) {
-			Serial.print(F("PULL <"));
+			Serial.println(F("M PULL"));
 			if (debug>=1) Serial.flush();
 		}
 #endif
         pullData();										// Send PULL_DATA message to server
 		startReceiver();
-		#if DUSB>=1
-		if (( debug>=1 ) && ( pdebug & P_MAIN )) {
-			Serial.println(F(">"));
-			if (debug>=2) Serial.flush();
-		}
-#endif		
+	
 		pulltime = nowSeconds;
     }
 

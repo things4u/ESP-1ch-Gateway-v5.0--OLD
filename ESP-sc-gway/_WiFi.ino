@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.3.2
-// Date: 2018-07-07
+// Version 5.3.3
+// Date: 2018-08-25
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -35,8 +35,8 @@ int WlanStatus() {
 	switch (WiFi.status()) {
 		case WL_CONNECTED:
 #if DUSB>=1
-			if (debug>=0) {
-				Serial.print(F("WlanCStatus:: CONNECTED to"));				// 3
+			if ( debug>=0 ) {
+				Serial.print(F("A WlanStatus:: CONNECTED to "));				// 3
 				Serial.println(WiFi.SSID());
 			}
 #endif
@@ -48,8 +48,8 @@ int WlanStatus() {
 		// The ESP is configured to reconnect to the last router in memory.
 		case WL_DISCONNECTED:
 #if DUSB>=1
-			if (debug>=0) {
-				Serial.print(F("WlanStatus:: DISCONNECTED, IP="));			// 6
+			if ( debug>=0 ) {
+				Serial.print(F("A WlanStatus:: DISCONNECTED, IP="));			// 6
 				Serial.println(WiFi.localIP());
 			}
 #endif
@@ -63,8 +63,9 @@ int WlanStatus() {
 		// When still pocessing
 		case WL_IDLE_STATUS:
 #if DUSB>=1
-			if (debug>=0)
-				Serial.println(F("WlanStatus:: IDLE"));					// 0
+			if ( debug>=0 ) {
+				Serial.println(F("A WlanStatus:: IDLE"));					// 0
+			}
 #endif
 			break;
 		
@@ -72,31 +73,31 @@ int WlanStatus() {
 		// Whene detected, the program will search for a better AP in range
 		case WL_NO_SSID_AVAIL:
 #if DUSB>=1
-			if (debug>=0)
+			if ( debug>=0 )
 				Serial.println(F("WlanStatus:: NO SSID"));					// 1
 #endif
 			break;
 			
 		case WL_CONNECT_FAILED:
 #if DUSB>=1
-			if (debug>=0)
-				Serial.println(F("WlanStatus:: FAILED"));					// 4
+			if ( debug>=0 )
+				Serial.println(F("A WlanStatus:: FAILED"));					// 4
 #endif
 			break;
 			
 		// Never seen this code
 		case WL_SCAN_COMPLETED:
 #if DUSB>=1
-			if (debug>=0)
-				Serial.println(F("WlanStatus:: SCAN COMPLETE"));			// 2
+			if ( debug>=0 )
+				Serial.println(F("A WlanStatus:: SCAN COMPLETE"));			// 2
 #endif
 			break;
 			
 		// Never seen this code
 		case WL_CONNECTION_LOST:
 #if DUSB>=1
-			if (debug>=0)
-				Serial.println(F("WlanStatus:: LOST"));					// 5
+			if ( debug>=0 )
+				Serial.println(F("A WlanStatus:: LOST"));					// 5
 #endif
 			break;
 			
@@ -104,22 +105,23 @@ int WlanStatus() {
 		// before accessing WiFi functions
 		case WL_NO_SHIELD:
 #if DUSB>=1
-			if (debug>=0)
-				Serial.println(F("WlanStatus:: WL_NO_SHIELD"));				// 
+			if ( debug>=0 )
+				Serial.println(F("A WlanStatus:: WL_NO_SHIELD"));				// 
 #endif
 			break;
 			
-			default:
+		default:
 #if DUSB>=1
-			if (debug>=0) {
-				Serial.print(F("WlanStatus:: code="));
+			if ( debug>=0 ) {
+				Serial.print(F("A WlanStatus Error:: code="));
 				Serial.println(WiFi.status());								// 255 means ERROR
 			}
 #endif
 			break;
 	}
 	return(-1);
-}
+	
+} // WlanStatus
 
 // ----------------------------------------------------------------------------
 // config.txt is a text file that contains lines(!) with WPA configuration items
@@ -173,7 +175,7 @@ int WlanWriteWpa( char* ssid, char *pass) {
 
 #if DUSB>=1
 	if (( debug >=0 ) && ( pdebug & P_MAIN )) {
-		Serial.print(F("WlanWriteWpa:: ssid=")); 
+		Serial.print(F("M WlanWriteWpa:: ssid=")); 
 		Serial.print(ssid);
 		Serial.print(F(", pass=")); 
 		Serial.print(pass); 
@@ -266,6 +268,8 @@ int WlanConnect(int maxTry) {
 				Serial.print(i);
 				Serial.print(':');
 				Serial.print(j); 
+				Serial.print(':');
+				Serial.print(sizeof(wpa)/sizeof(wpa[0]));
 				Serial.print(F(". WiFi connect SSID=")); 
 				Serial.print(ssid);
 				if ( debug>=1 ) {
@@ -291,7 +295,7 @@ int WlanConnect(int maxTry) {
 			// -1 = No SSID or other cause			
 			int stat = WlanStatus();
 			if ( stat == 1) {
-				writeGwayCfg(CONFIGFILE);					// XXX Write cnfiguration to SPIFFS
+				writeGwayCfg(CONFIGFILE);					// XXX Write configuration to SPIFFS
 				return(1);
 			}
 		
@@ -307,8 +311,10 @@ int WlanConnect(int maxTry) {
 				}
 #endif
 			}
-		
-			if ( WiFi.status() == WL_DISCONNECTED) return(0);				// wait
+#if DUSB>=1
+			Serial.println();
+#endif		
+			//if ( WiFi.status() == WL_DISCONNECTED) return(0);				// XXX 180811 removed
 
 
 			// Make sure that we can connect to different AP's than 1

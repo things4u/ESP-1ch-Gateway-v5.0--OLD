@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.3.2
-// Date: 2018-07-07
+// Version 5.3.3
+// Date: 2018-08-25
 //
 // 	based on work done by many people and making use of several libraries.
 //
@@ -66,14 +66,43 @@ static void printIP(IPAddress ipa, const char sep, String& response)
 
 // ----------------------------------------------------------------------------
 // Used by all functions requiring user confirmation
-// Displays a menu by user and two buttons "YES" and "CANCEL"
-// The function returns true for YES and false for CANCEL
+// Displays a menu by user and two buttons "OK" and "CANCEL"
+// The function returns true for OK and false for CANCEL
+// Usage: Call this function ONCE during startup to declare and init
+// the ynDialog JavaScript function, and call the function
+// from the program when needed.
+// Paramters of the JavaScript function:
+//	s: Th strig contining the question to be answered
+//	o: The OK tab for the webpage where to go to
+//	c: The Cancel string (optional)
 // ----------------------------------------------------------------------------
-boolean YesNo(String s)
+boolean YesNo()
 {
 	boolean ret = false;
-	//Serial.println(F("Renew Web Page"));
-	//sendWebPage("","");
+	String response = "";
+	response += "<script>";
+	
+	response += "var ch = \"\"; ";								// Init ch oice
+	response += "function ynDialog(s,y) {";
+	response += "  try { adddlert(s); }";
+	response += "  catch(err) {";
+	response += "    ch  = \" \" + s + \".\\n\\n\"; ";
+	response += "    ch += \"Click OK to continue,\\n\"; ";
+	response += "    ch += \"or Cancel\\n\\n\"; ";
+	response += "    if(!confirm(ch)) { ";
+	response += "      javascript:window.location.reload(true);";
+	response += "    } ";
+	response += "    else { ";
+	response += "      document.location.href = '/'+y; ";
+	response += "    } ";
+	response += "  }";
+	response += "}";
+	response += "</script>";
+	server.sendContent(response);
+	
+// Put something like this in the ESP program
+//	response += "<input type=\"button\" value=\"YesNo\" onclick=\"ynDialog()\" />";
+	
 	return(ret);
 }
 
@@ -92,14 +121,14 @@ void wwwFile(String fn) {
 
 	if (!SPIFFS.exists(fn)) {
 #if DUSB>=1
-		Serial.print(F("wwwButtons:: ERROR: file not found="));
+		Serial.print(F("wwwFile:: ERROR: file not found="));
 		Serial.println(fn);
 #endif
 		return;
 	}
 #if DUSB>=2
 	else {
-		Serial.print(F("wwwButtons:: File existist= "));
+		Serial.print(F("wwwFile:: File existist= "));
 		Serial.println(fn);
 	}
 #endif
@@ -124,25 +153,37 @@ void wwwFile(String fn) {
 }
 
 // ----------------------------------------------------------------------------
-// Button function Stat, display statistics
+// Button function Docu, display the documentation pages.
 // This is a button on the top of the GUI screen.
 // ----------------------------------------------------------------------------
-void buttonStat() 
+void buttonDocu() 
 {
-	//Serial.print(F("Log"));
-	//Serial.println();
-
-	//printLog();
 
 	String response = "";
-	response+= "<script> confirm('Confirm Log'); </script>";
+	response += "<script>";
+	
+	response += "var txt = \"\";";
+	response += "function showDocu() {";
+	response += "  try { adddlert(\"Welcome,\"); }";
+	response += "  catch(err) {";
+	response += "    txt  = \"Do you want the documentation page.\\n\\n\"; ";
+	response += "    txt += \"Click OK to continue viewing documentation,\\n\"; ";
+	response += "    txt += \"or Cancel to return to the home page.\\n\\n\"; ";
+	response += "    if(confirm(txt)) { ";
+	response += "      document.location.href = \"https://things4u.github.io/UserGuide/One%20Channel%20Gateway/Introduction%205.html\"; ";
+	response += "    }";
+	response += "  }";
+	response += "}";
+	
+	response += "</script>";
 	server.sendContent(response);
-
 }
 
 
+
+
 // ----------------------------------------------------------------------------
-// Button gunction Log displays  logfiles.
+// Button function Log displays  logfiles.
 // This is a button on the top of the GUI screen
 // ----------------------------------------------------------------------------
 void buttonLog() 
@@ -169,11 +210,18 @@ void buttonLog()
 static void wwwButtons()
 {
 	String response = "";
+	String mode = (gwayConfig.expert ? "Basic Mode" : "Expert Mode");
 
-	response += "<a href=\"STAT\" download><button type=\"button\">Stat</button></a>";
-	response += "<a href=\"LOG\" download><button type=\"button\">Log</button></a>";
+	YesNo();												// Init the Yes/No function
+	buttonDocu();
 
-	server.sendContent(response);									// Send to the screen
+	response += "<input type=\"button\" value=\"Documentation\" onclick=\"showDocu()\" >";
+	
+	response += "<a href=\"EXPERT\" download><button type=\"button\">" + mode + "</button></a>";
+
+	response += "<a href=\"LOG\" download><button type=\"button\">Log Files</button></a>";
+
+	server.sendContent(response);							// Send to the screen
 }
 
 
@@ -552,101 +600,23 @@ static void settingsData()
 	// Format the Filesystem
 	response +="<tr><td class=\"cell\">Format SPIFFS</td>";
 	response +=String() + "<td class=\"cell\" colspan=\"2\" >"+""+"</td>";
-	response +="<td colspan=\"2\" class=\"cell\"><a href=\"/FORMAT\"><button>FORMAT</button></a></td></tr>";
-	
+	response +="<td colspan=\"2\" class=\"cell\"><input type=\"button\" value=\"FORMAT\" onclick=\"ynDialog(\'Do you really want to format?\',\'FORMAT\')\" /></td></tr>";
+
 	// Reset all statistics
 #if STATISTICS >= 1
 	response +="<tr><td class=\"cell\">Statistics</td>";
 	response +=String() + "<td class=\"cell\" colspan=\"2\" >"+statc.resets+"</td>";
-	response +="<td colspan=\"2\" class=\"cell\"><a href=\"/RESET\"><button>RESET</button></a></td></tr>";
+	response +="<td colspan=\"2\" class=\"cell\"><input type=\"button\" value=\"RESET\" onclick=\"ynDialog(\'Do you really want to reset statistics?\',\'RESET\')\" /></td></tr>";
 
 	// Reset
 	response +="<tr><td class=\"cell\">Boots and Resets</td>";
 	response +=String() + "<td class=\"cell\" colspan=\"2\" >"+gwayConfig.boots+"</td>";
-	response +="<td colspan=\"2\" class=\"cell\"><a href=\"/BOOT\"><button>RESET</button></a></td></tr>";
+	response +="<td colspan=\"2\" class=\"cell\"><input type=\"button\" value=\"RESET\" onclick=\"ynDialog(\'Do you want to reset boots?\',\'BOOT\')\" /></td></tr>";
 #endif
 	
 	response +="</table>";
 	
 	server.sendContent(response);
-}
-
-
-// ----------------------------------------------------------------------------
-// INTERRUPT DATA
-// Display interrupt data, but only for debug >= 2
-//
-// ----------------------------------------------------------------------------
-static void interruptData()
-{
-	uint8_t flags = readRegister(REG_IRQ_FLAGS);
-	uint8_t mask = readRegister(REG_IRQ_FLAGS_MASK);
-	
-	if (debug >= 2) {
-		String response="";
-		
-		response +="<h2>System State and Interrupt</h2>";
-		
-		response +="<table class=\"config_table\">";
-		response +="<tr>";
-		response +="<th class=\"thead\">Parameter</th>";
-		response +="<th class=\"thead\">Value</th>";
-		response +="<th colspan=\"2\"  class=\"thead\">Set</th>";
-		response +="</tr>";
-		
-		response +="<tr><td class=\"cell\">_state</td>";
-		response +="<td class=\"cell\">";
-		switch (_state) {							// See loraModem.h
-			case S_INIT: response +="INIT"; break;
-			case S_SCAN: response +="SCAN"; break;
-			case S_CAD: response +="CAD"; break;
-			case S_RX: response +="RX"; break;
-			case S_TX: response +="TX"; break;
-			default: response +="unknown"; break;
-		}
-		response +="</td></tr>";
-
-		response +="<tr><td class=\"cell\">flags (8 bits)</td>";
-		response +="<td class=\"cell\">0x";
-		if (flags <16) response += "0";
-		response +=String(flags,HEX); response+="</td></tr>";
-
-		
-		response +="<tr><td class=\"cell\">mask (8 bits)</td>";
-		response +="<td class=\"cell\">0x"; 
-		if (mask <16) response += "0";
-		response +=String(mask,HEX); response+="</td></tr>";
-		
-		response +="<tr><td class=\"cell\">Re-entrant cntr</td>";
-		response +="<td class=\"cell\">"; 
-		response += String() + gwayConfig.reents;
-		response +="</td></tr>";
-
-		response +="<tr><td class=\"cell\">ntp call cntr</td>";
-		response +="<td class=\"cell\">"; 
-		response += String() + gwayConfig.ntps;
-		response+="</td></tr>";
-		
-		response +="<tr><td class=\"cell\">ntpErr cntr</td>";
-		response +="<td class=\"cell\">"; 
-		response += String() + gwayConfig.ntpErr;
-		response +="</td>";
-		response +="<td colspan=\"2\" style=\"border: 1px solid black;\">";
-		stringTime(gwayConfig.ntpErrTime, response);
-		response +="</td>";
-		response +="</tr>";
-		
-		response +="<tr><td class=\"cell\">Time Correction (uSec)</td><td class=\"cell\">"; 
-		response += txDelay; 
-		response +="</td>";
-		response +="<td class=\"cell\"><a href=\"DELAY=-1\"><button>-</button></a></td>";
-		response +="<td class=\"cell\"><a href=\"DELAY=1\"><button>+</button></a></td>";
-		response +="</tr>";
-		
-		response +="</table>";
-		
-		server.sendContent(response);
-	}// if debug>=2
 }
 
 
@@ -858,7 +828,7 @@ static void sensorData()
 
 		response += String() + "<td class=\"cell\">" + statr[i].prssi + "</td>";
 #if RSSI==1
-		if (debug > 1) {
+		if (debug >= 2) {
 			response += String() + "<td class=\"cell\">" + statr[i].rssi + "</td>";
 		}
 #endif
@@ -871,107 +841,12 @@ static void sensorData()
 #endif
 }
 
-// ----------------------------------------------------------------------------
-// SYSTEMDATA
-//
-// ----------------------------------------------------------------------------
-static void systemData()
-{
-	String response="";
-	response +="<h2>System Status</h2>";
-	
-	response +="<table class=\"config_table\">";
-	response +="<tr>";
-	response +="<th class=\"thead\">Parameter</th>";
-	response +="<th class=\"thead\">Value</th>";
-	response +="<th colspan=\"2\" class=\"thead\">Set</th>";
-	response +="</tr>";
-	
-	response +="<tr><td style=\"border: 1px solid black; width:120px;\">Gateway ID</td>";
-	response +="<td class=\"cell\">";	
-	  if (MAC_array[0]< 0x10) response +='0'; response +=String(MAC_array[0],HEX);	// The MAC array is always returned in lowercase
-	  if (MAC_array[1]< 0x10) response +='0'; response +=String(MAC_array[1],HEX);
-	  if (MAC_array[2]< 0x10) response +='0'; response +=String(MAC_array[2],HEX);
-	  response +="FFFF"; 
-	  if (MAC_array[3]< 0x10) response +='0'; response +=String(MAC_array[3],HEX);
-	  if (MAC_array[4]< 0x10) response +='0'; response +=String(MAC_array[4],HEX);
-	  if (MAC_array[5]< 0x10) response +='0'; response +=String(MAC_array[5],HEX);
-	response+="</tr>";
-	
-
-	response +="<tr><td class=\"cell\">Free heap</td><td class=\"cell\">"; response+=ESP.getFreeHeap(); response+="</tr>";
-// XXX We Shoudl find an ESP32 alternative
-#if !defined ESP32_ARCH
-	response +="<tr><td class=\"cell\">ESP speed</td><td class=\"cell\">"; response+=ESP.getCpuFreqMHz(); 
-		response +="<td style=\"border: 1px solid black; width:40px;\"><a href=\"SPEED=80\"><button>80</button></a></td>";
-		response +="<td style=\"border: 1px solid black; width:40px;\"><a href=\"SPEED=160\"><button>160</button></a></td>";
-		response+="</tr>";
-	response +="<tr><td class=\"cell\">ESP Chip ID</td><td class=\"cell\">"; response+=ESP.getChipId(); response+="</tr>";
-#endif
-	response +="<tr><td class=\"cell\">OLED</td><td class=\"cell\">"; response+=OLED; response+="</tr>";
-		
-#if STATISTICS>=1
-	response +="<tr><td class=\"cell\">WiFi Setups</td><td class=\"cell\">"; response+=gwayConfig.wifis; response+="</tr>";
-	response +="<tr><td class=\"cell\">WWW Views</td><td class=\"cell\">"; response+=gwayConfig.views; response+="</tr>";
-#endif
-
-	response +="</table>";
-	server.sendContent(response);
-}
-
-
-// ----------------------------------------------------------------------------
-// WIFIDATA
-// Display the most important Wifi parameters gathered
-//
-// ----------------------------------------------------------------------------
-static void wifiData()
-{
-	String response="";
-	response +="<h2>WiFi Config</h2>";
-
-	response +="<table class=\"config_table\">";
-
-	response +="<tr><th class=\"thead\">Parameter</th><th class=\"thead\">Value</th></tr>";
-	
-	response +="<tr><td class=\"cell\">WiFi host</td><td class=\"cell\">"; 
-#if ESP32_ARCH==1
-	response +=WiFi.getHostname(); response+="</tr>";
-#else
-	response +=wifi_station_get_hostname(); response+="</tr>";
-#endif
-
-	response +="<tr><td class=\"cell\">WiFi SSID</td><td class=\"cell\">"; 
-	response +=WiFi.SSID(); response+="</tr>";
-	
-	response +="<tr><td class=\"cell\">IP Address</td><td class=\"cell\">"; 
-	printIP((IPAddress)WiFi.localIP(),'.',response); 
-	response +="</tr>";
-	response +="<tr><td class=\"cell\">IP Gateway</td><td class=\"cell\">"; 
-	printIP((IPAddress)WiFi.gatewayIP(),'.',response); 
-	response +="</tr>";
-	response +="<tr><td class=\"cell\">NTP Server</td><td class=\"cell\">"; response+=NTP_TIMESERVER; response+="</tr>";
-	response +="<tr><td class=\"cell\">LoRa Router</td><td class=\"cell\">"; response+=_TTNSERVER; response+="</tr>";
-	response +="<tr><td class=\"cell\">LoRa Router IP</td><td class=\"cell\">"; 
-	printIP((IPAddress)ttnServer,'.',response); 
-	response +="</tr>";
-#ifdef _THINGSERVER
-	response +="<tr><td class=\"cell\">LoRa Router 2</td><td class=\"cell\">"; response+=_THINGSERVER; 
-	response += String() + ":" + _THINGPORT + "</tr>";
-	response +="<tr><td class=\"cell\">LoRa Router 2 IP</td><td class=\"cell\">"; 
-	printIP((IPAddress)thingServer,'.',response);
-	response +="</tr>";
-#endif
-	response +="</table>";
-
-	server.sendContent(response);
-}
-
 
 // ----------------------------------------------------------------------------
 // SEND WEB PAGE() 
 // Call the webserver and send the standard content and the content that is 
-// passed by the parameter.
+// passed by the parameter. Each time a variable is changed, this function is 
+// called to display the webpage again/
 //
 // NOTE: This is the only place where yield() or delay() calls are used.
 //
@@ -1004,8 +879,9 @@ void sendWebPage(const char *cmd, const char *arg)
 
 
 // ----------------------------------------------------------------------------
+// setupWWW is the main function for webserver functions/
 // SetupWWW function called by main setup() program to setup webserver
-// It does actually not much more than installing the callback handlers
+// It does actually not much more than installing all the callback handlers
 // for messages sent to the webserver
 //
 // Implemented is an interface like:
@@ -1035,9 +911,15 @@ void setupWWW()
 	// Format the filesystem
 	server.on("/FORMAT", []() {
 		Serial.print(F("FORMAT ..."));
+		
 		SPIFFS.format();								// Normally disabled. Enable only when SPIFFS corrupt
 		initConfig(&gwayConfig);
+		writeConfig( CONFIGFILE, &gwayConfig);
+#if DUSB>=1
 		Serial.println(F("DONE"));
+#endif
+		server.sendHeader("Location", String("/"), true);
+		server.send ( 302, "text/plain", "");
 	});
 	
 	
@@ -1166,12 +1048,12 @@ void setupWWW()
 	
 	// Set delay in microseconds
 	server.on("/DELAY=1", []() {
-		txDelay+=1000;
+		txDelay+=5000;
 		server.sendHeader("Location", String("/"), true);
 		server.send ( 302, "text/plain", "");
 	});
 	server.on("/DELAY=-1", []() {
-		txDelay-=1000;
+		txDelay-=5000;
 		server.sendHeader("Location", String("/"), true);
 		server.send ( 302, "text/plain", "");
 	});
@@ -1295,18 +1177,30 @@ void setupWWW()
 		server.send ( 302, "text/plain", "");
 	});
 #endif
-	// Display Statistics
-	server.on("/STAT", []() {
-		buttonStat();
-		//server.sendHeader("Location", String("/"), true);
+	// Display Documentation pages
+	server.on("/DOCU", []() {
 
-		//server.send ( 302, "text/plain", "");
+		server.sendHeader("Location", String("/"), true);
+		buttonDocu();
+		server.send ( 302, "text/plain", "");
 	});
+	
 	server.on("/LOG", []() {
 		server.sendHeader("Location", String("/"), true);
+#if DUSB>=1
+		Serial.println(F("LOG button"));
+#endif
 		buttonLog();
 		server.send ( 302, "text/plain", "");
 	});
+	
+	// Display Expert mode or Simple mode
+	server.on("/EXPERT", []() {
+		server.sendHeader("Location", String("/"), true);
+		gwayConfig.expert = bool(1 - (int) gwayConfig.expert) ;
+		server.send ( 302, "text/plain", "");
+	});
+
 	
 	// Update the sketch. Not yet implemented
 	server.on("/UPDATE=1", []() {
@@ -1327,7 +1221,186 @@ void setupWWW()
 	Serial.print(F("WWW Server started on port "));
 	Serial.println(A_SERVERPORT);
 	return;
-}
+} // setupWWW
 
+
+
+// ----------------------------------------------------------------------------
+// WIFI CONFIG
+// wifiData() displays the most important Wifi parameters gathered
+//
+// ----------------------------------------------------------------------------
+static void wifiData()
+{
+	if (gwayConfig.expert) {
+	String response="";
+	response +="<h2>WiFi Config</h2>";
+
+	response +="<table class=\"config_table\">";
+
+	response +="<tr><th class=\"thead\">Parameter</th><th class=\"thead\">Value</th></tr>";
+	
+	response +="<tr><td class=\"cell\">WiFi host</td><td class=\"cell\">"; 
+#if ESP32_ARCH==1
+	response +=WiFi.getHostname(); response+="</tr>";
+#else
+	response +=wifi_station_get_hostname(); response+="</tr>";
 #endif
+
+	response +="<tr><td class=\"cell\">WiFi SSID</td><td class=\"cell\">"; 
+	response +=WiFi.SSID(); response+="</tr>";
+	
+	response +="<tr><td class=\"cell\">IP Address</td><td class=\"cell\">"; 
+	printIP((IPAddress)WiFi.localIP(),'.',response); 
+	response +="</tr>";
+	response +="<tr><td class=\"cell\">IP Gateway</td><td class=\"cell\">"; 
+	printIP((IPAddress)WiFi.gatewayIP(),'.',response); 
+	response +="</tr>";
+	response +="<tr><td class=\"cell\">NTP Server</td><td class=\"cell\">"; response+=NTP_TIMESERVER; response+="</tr>";
+	response +="<tr><td class=\"cell\">LoRa Router</td><td class=\"cell\">"; response+=_TTNSERVER; response+="</tr>";
+	response +="<tr><td class=\"cell\">LoRa Router IP</td><td class=\"cell\">"; 
+	printIP((IPAddress)ttnServer,'.',response); 
+	response +="</tr>";
+#ifdef _THINGSERVER
+	response +="<tr><td class=\"cell\">LoRa Router 2</td><td class=\"cell\">"; response+=_THINGSERVER; 
+	response += String() + ":" + _THINGPORT + "</tr>";
+	response +="<tr><td class=\"cell\">LoRa Router 2 IP</td><td class=\"cell\">"; 
+	printIP((IPAddress)thingServer,'.',response);
+	response +="</tr>";
+#endif
+	response +="</table>";
+
+	server.sendContent(response);
+	} // gwayConfig.expert
+} // wifiData
+
+
+// ----------------------------------------------------------------------------
+// SYSTEMDATA
+// This section contain a number of system specific data such as heap size etc.
+// ----------------------------------------------------------------------------
+static void systemData()
+{
+	if (gwayConfig.expert) {
+		String response="";
+		response +="<h2>System Status</h2>";
+	
+		response +="<table class=\"config_table\">";
+		response +="<tr>";
+		response +="<th class=\"thead\">Parameter</th>";
+		response +="<th class=\"thead\">Value</th>";
+		response +="<th colspan=\"2\" class=\"thead\">Set</th>";
+		response +="</tr>";
+	
+		response +="<tr><td style=\"border: 1px solid black; width:120px;\">Gateway ID</td>";
+		response +="<td class=\"cell\">";	
+		if (MAC_array[0]< 0x10) response +='0'; response +=String(MAC_array[0],HEX);	// The MAC array is always returned in lowercase
+		if (MAC_array[1]< 0x10) response +='0'; response +=String(MAC_array[1],HEX);
+		if (MAC_array[2]< 0x10) response +='0'; response +=String(MAC_array[2],HEX);
+		response +="FFFF"; 
+		if (MAC_array[3]< 0x10) response +='0'; response +=String(MAC_array[3],HEX);
+		if (MAC_array[4]< 0x10) response +='0'; response +=String(MAC_array[4],HEX);
+		if (MAC_array[5]< 0x10) response +='0'; response +=String(MAC_array[5],HEX);
+		response+="</tr>";
+	
+
+		response +="<tr><td class=\"cell\">Free heap</td><td class=\"cell\">"; response+=ESP.getFreeHeap(); response+="</tr>";
+// XXX We Shoudl find an ESP32 alternative
+#if !defined ESP32_ARCH
+		response +="<tr><td class=\"cell\">ESP speed</td><td class=\"cell\">"; response+=ESP.getCpuFreqMHz(); 
+		response +="<td style=\"border: 1px solid black; width:40px;\"><a href=\"SPEED=80\"><button>80</button></a></td>";
+		response +="<td style=\"border: 1px solid black; width:40px;\"><a href=\"SPEED=160\"><button>160</button></a></td>";
+		response+="</tr>";
+		response +="<tr><td class=\"cell\">ESP Chip ID</td><td class=\"cell\">"; response+=ESP.getChipId(); response+="</tr>";
+#endif
+		response +="<tr><td class=\"cell\">OLED</td><td class=\"cell\">"; response+=OLED; response+="</tr>";
+		
+#if STATISTICS>=1
+		response +="<tr><td class=\"cell\">WiFi Setups</td><td class=\"cell\">"; response+=gwayConfig.wifis; response+="</tr>";
+		response +="<tr><td class=\"cell\">WWW Views</td><td class=\"cell\">"; response+=gwayConfig.views; response+="</tr>";
+#endif
+
+		response +="</table>";
+		server.sendContent(response);
+	} // gwayConfig.expert
+} // systemData
+
+
+// ----------------------------------------------------------------------------
+// INTERRUPT DATA
+// Display interrupt data, but only for debug >= 2
+//
+// ----------------------------------------------------------------------------
+static void interruptData()
+{
+	if (gwayConfig.expert) {
+		uint8_t flags = readRegister(REG_IRQ_FLAGS);
+		uint8_t mask = readRegister(REG_IRQ_FLAGS_MASK);
+		String response="";
+		
+		response +="<h2>System State and Interrupt</h2>";
+		
+		response +="<table class=\"config_table\">";
+		response +="<tr>";
+		response +="<th class=\"thead\">Parameter</th>";
+		response +="<th class=\"thead\">Value</th>";
+		response +="<th colspan=\"2\"  class=\"thead\">Set</th>";
+		response +="</tr>";
+		
+		response +="<tr><td class=\"cell\">_state</td>";
+		response +="<td class=\"cell\">";
+		switch (_state) {							// See loraModem.h
+			case S_INIT: response +="INIT"; break;
+			case S_SCAN: response +="SCAN"; break;
+			case S_CAD: response +="CAD"; break;
+			case S_RX: response +="RX"; break;
+			case S_TX: response +="TX"; break;
+			default: response +="unknown"; break;
+		}
+		response +="</td></tr>";
+
+		response +="<tr><td class=\"cell\">flags (8 bits)</td>";
+		response +="<td class=\"cell\">0x";
+		if (flags <16) response += "0";
+		response +=String(flags,HEX); response+="</td></tr>";
+
+		
+		response +="<tr><td class=\"cell\">mask (8 bits)</td>";
+		response +="<td class=\"cell\">0x"; 
+		if (mask <16) response += "0";
+		response +=String(mask,HEX); response+="</td></tr>";
+		
+		response +="<tr><td class=\"cell\">Re-entrant cntr</td>";
+		response +="<td class=\"cell\">"; 
+		response += String() + gwayConfig.reents;
+		response +="</td></tr>";
+
+		response +="<tr><td class=\"cell\">ntp call cntr</td>";
+		response +="<td class=\"cell\">"; 
+		response += String() + gwayConfig.ntps;
+		response+="</td></tr>";
+		
+		response +="<tr><td class=\"cell\">ntpErr cntr</td>";
+		response +="<td class=\"cell\">"; 
+		response += String() + gwayConfig.ntpErr;
+		response +="</td>";
+		response +="<td colspan=\"2\" style=\"border: 1px solid black;\">";
+		stringTime(gwayConfig.ntpErrTime, response);
+		response +="</td>";
+		response +="</tr>";
+		
+		response +="<tr><td class=\"cell\">Time Correction (uSec)</td><td class=\"cell\">"; 
+		response += txDelay; 
+		response +="</td>";
+		response +="<td class=\"cell\"><a href=\"DELAY=-1\"><button>-</button></a></td>";
+		response +="<td class=\"cell\"><a href=\"DELAY=1\"><button>+</button></a></td>";
+		response +="</tr>";
+		
+		response +="</table>";
+		
+		server.sendContent(response);
+	}// if gwayConfig.expert
+} // interruptData
+
+#endif // A_SERVER==1
 

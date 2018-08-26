@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.3.2
-// Date: 2018-07-07
+// Version 5.3.3
+// Date: 2018-08-25
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -71,6 +71,7 @@ struct espGwayConfig {
 	bool hop;					// Is HOP enabled (Note: default be disabled)
 	bool isNode;				// Is gateway node enabled
 	bool refresh;				// Is WWW browser refresh enabled
+	bool expert;
 	
 	String ssid;				// SSID of the last connected WiFi Network
 	String pass;				// Password of WiFi network

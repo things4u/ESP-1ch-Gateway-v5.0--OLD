@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.3.2
-// Date: 2018-07-07
+// Version 5.3.3
+// Date: 2018-08-25
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -29,6 +29,9 @@
 // This function is used for regular downstream messages and for JOIN_ACCEPT
 // messages.
 // NOTE: This is not an interrupt function, but is started by loop().
+// The _status is set an the end of the function to TX and in _stateMachine
+// function the actual transmission function is executed.
+// The LoraDown.tmst contains the timestamp that the tranmission should finish.
 // ----------------------------------------------------------------------------
 int sendPacket(uint8_t *buf, uint8_t length) 
 {
@@ -74,12 +77,14 @@ int sendPacket(uint8_t *buf, uint8_t length)
 		
 	if (!root.success()) {
 #if DUSB>=1
-		Serial.print (F("sendPacket:: ERROR Json Decode"));
-		if (debug>=2) {
-			Serial.print(':');
-			Serial.println(bufPtr);
+		if (( debug>=1) && (pdebug & P_TX)) {
+			Serial.print (F("T sendPacket:: ERROR Json Decode"));
+			if (debug>=2) {
+				Serial.print(':');
+				Serial.println(bufPtr);
+			}
+			Serial.flush();
 		}
-		Serial.flush();
 #endif
 		return(-1);
 	}
@@ -88,109 +93,118 @@ int sendPacket(uint8_t *buf, uint8_t length)
 	// Meta Data sent by server (example)
 	// {"txpk":{"codr":"4/5","data":"YCkEAgIABQABGmIwYX/kSn4Y","freq":868.1,"ipol":true,"modu":"LORA","powe":14,"rfch":0,"size":18,"tmst":1890991792,"datr":"SF7BW125"}}
 
-	// Used in the protocol:
-	const char * data	= root["txpk"]["data"];
+	// Used in the protocol of Gateway:
+	const char * data	= root["txpk"]["data"];			// Downstream Payload
 	uint8_t psize		= root["txpk"]["size"];
 	bool ipol			= root["txpk"]["ipol"];
-	uint8_t powe		= root["txpk"]["powe"];
-	uint32_t tmst		= (uint32_t) root["txpk"]["tmst"].as<unsigned long>();
-
-	// Not used in the protocol:
-	const char * datr	= root["txpk"]["datr"];			// eg "SF7BW125"
+	uint8_t powe		= root["txpk"]["powe"];			// e.g. 14 or 27
+	LoraDown.tmst		= (uint32_t) root["txpk"]["tmst"].as<unsigned long>();
 	const float ff		= root["txpk"]["freq"];			// eg 869.525
+	
+	// Not used in the protocol of Gateway TTN:
+	const char * datr	= root["txpk"]["datr"];			// eg "SF7BW125"
 	const char * modu	= root["txpk"]["modu"];			// =="LORA"
-	const char * codr	= root["txpk"]["codr"];
+	const char * codr	= root["txpk"]["codr"];			// e.g. "4/5"
 	//if (root["txpk"].containsKey("imme") ) {
 	//	const bool imme = root["txpk"]["imme"];			// Immediate Transmit (tmst don't care)
 	//}
 
-	if (data != NULL) {
+	if ( data != NULL ) {
 #if DUSB>=1
-		if (debug>=2) { 
-			Serial.print(F("data: ")); 
+		if (( debug>=2 ) && ( pdebug & P_TX )) { 
+			Serial.print(F("T data: ")); 
 			Serial.println((char *) data);
 			if (debug>=2) Serial.flush();
 		}
 #endif
 	}
-	else {
+	else {												// There is data!
 #if DUSB>=1
-		Serial.println(F("sendPacket:: ERROR: data is NULL"));
-		if (debug>=2) Serial.flush();
+		if ((debug>0) && ( pdebug & P_TX )) {
+			Serial.println(F("T sendPacket:: ERROR: data is NULL"));
+			if (debug>=2) Serial.flush();
+		}
 #endif
 		return(-1);
 	}
-	
-	uint8_t iiq = (ipol? 0x40: 0x27);					// if ipol==true 0x40 else 0x27
-	uint8_t crc = 0x00;									// switch CRC off for TX
-	uint8_t payLength = base64_dec_len((char *) data, strlen(data));
-	
-	// Fill payload with decoded message
-	base64_decode((char *) payLoad, (char *) data, strlen(data));
+
+	LoraDown.sfTx = atoi(datr+2);						// Convert "SF9BW125" or what is received from gateway to number
+	LoraDown.iiq = (ipol? 0x40: 0x27);					// if ipol==true 0x40 else 0x27
+	LoraDown.crc = 0x00;								// switch CRC off for TX
+	LoraDown.payLength = base64_dec_len((char *) data, strlen(data));// Length of the Payload data	
+	base64_decode((char *) payLoad, (char *) data, strlen(data));	// Fill payload w decoded message
 
 	// Compute wait time in microseconds
-	uint32_t w = (uint32_t) (tmst - micros());
-	
+	uint32_t w = (uint32_t) (LoraDown.tmst - micros());	// Wait Time compute
+
+// _STRICT_1CH determines ho we will react on downstream messages.
+// If STRICT==0, we will receive messags from the TTN gateway presumably on SF12/869.5MHz
+// And since the Gateway is a single channel gateway, and its nodes are probably
+// single channle too. They will not listen to that frequency.
+// When STRICT==1, we will answer (in the RX1 timeslot) on the frequency we receive on.
+//
 #if _STRICT_1CH == 1
-	// Use RX1 timeslot as this is our frequency.
+	// If possible use RX1 timeslot as this is our frequency.
 	// Do not use RX2 or JOIN2 as they contain other frequencies
-	if ((w>1000000) && (w<3000000)) { tmst-=1000000; }
-	else if ((w>6000000) && (w<7000000)) { tmst-=1000000; }
 	
-	const uint8_t sfTx = sfi;							// Take care, TX sf not to be mixed with SCAN
-	const uint32_t fff = freq;
+	if ((w>1000000) && (w<3000000)) { 
+		LoraDown.tmst-=1000000; 
+	}	// Is tmst correction necessary
+	else if ((w>6000000) && (w<7000000)) { 
+		LoraDown.tmst-=500000; 
+	}
+	LoraDown.powe = 14;										// On all freqs except 869.5MHz power is limited
+	//LoraDown.sfTx = sfi;									// Take care, TX sf not to be mixed with SCAN
+	LoraDown.fff = freq;									// Use the current frequency
 #else
-	const uint8_t sfTx = atoi(datr+2);					// Convert "SF9BW125" to 9
-	// convert double frequency (MHz) into uint32_t frequency in Hz.
-	const uint32_t fff = (uint32_t) ((uint32_t)((ff+0.000035)*1000)) * 1000;
-#endif
-
-	// All data is in Payload and parameters and need to be transmitted.
-	// The function is called in user-space
-	_state = S_TX;										// _state set to transmit
-	
-	LoraDown.payLoad = payLoad;
-	LoraDown.payLength = payLength;
-	LoraDown.tmst = tmst;								// Downstream in milis
-	LoraDown.sfTx = sfTx;
 	LoraDown.powe = powe;
-	LoraDown.fff = fff;
-	LoraDown.crc = crc;
-	LoraDown.iiq = iiq;
 
-	Serial.println(F("sendPacket:: LoraDown filled"));
+	// convert double frequency (MHz) into uint32_t frequency in Hz.
+	LoraDown.fff = (uint32_t) ((uint32_t)((ff+0.000035)*1000)) * 1000;
+#endif
+	
+	LoraDown.payLoad = payLoad;				
 
 #if DUSB>=1
-	if (debug>=2) {
-		Serial.print(F("Request:: "));
-		Serial.print(F(" tmst=")); Serial.print(tmst); Serial.print(F(" wait=")); Serial.println(w);
+	if (( debug>=1 ) && ( pdebug & P_TX)) {
+	
+		Serial.print(F("T LoraDown tmst="));
+		Serial.print(LoraDown.tmst);
+		//Serial.print(F(", w="));
+		//Serial.print(w);
 		
-		Serial.print(F(" strict=")); Serial.print(_STRICT_1CH);
-		Serial.print(F(" datr=")); Serial.println(datr);
-		Serial.print(F(" freq=")); Serial.print(freq); Serial.print(F(" ->")); Serial.println(fff);
-		Serial.print(F(" sf  =")); Serial.print(sf); Serial.print(F(" ->")); Serial.print(sfTx);
+		if ( debug>=2 ) {
+			Serial.print(F(" Request:: "));
+			Serial.print(F(" tmst=")); Serial.print(LoraDown.tmst); Serial.print(F(" wait=")); Serial.println(w);
 		
-		Serial.print(F(" modu=")); Serial.print(modu);
-		Serial.print(F(" powe=")); Serial.print(powe);
-		Serial.print(F(" codr=")); Serial.println(codr);
+			Serial.print(F(" strict=")); Serial.print(_STRICT_1CH);
+			Serial.print(F(" datr=")); Serial.println(datr);
+			Serial.print(F(" Rfreq=")); Serial.print(freq); Serial.print(F(", Request=")); Serial.print(freq); Serial.print(F(" ->")); Serial.println(LoraDown.fff);
+			Serial.print(F(" sf  =")); Serial.print(atoi(datr+2)); Serial.print(F(" ->")); Serial.println(LoraDown.sfTx);
+		
+			Serial.print(F(" modu=")); Serial.println(modu);
+			Serial.print(F(" powe=")); Serial.println(powe);
+			Serial.print(F(" codr=")); Serial.println(codr);
 
-		Serial.print(F(" ipol=")); Serial.println(ipol);
-		Serial.println();								// empty line between messages
+			Serial.print(F(" ipol=")); Serial.println(ipol);
+		}
+		Serial.println();
 	}
 #endif
 
-	if (payLength != psize) {
+	if (LoraDown.payLength != psize) {
 #if DUSB>=1
 		Serial.print(F("sendPacket:: WARNING payLength: "));
-		Serial.print(payLength);
+		Serial.print(LoraDown.payLength);
 		Serial.print(F(", psize="));
 		Serial.println(psize);
 		if (debug>=2) Serial.flush();
 #endif
 	}
 #if DUSB>=1
-	else if (debug >= 2) {
-		for (i=0; i<payLength; i++) {
+	else if (( debug >= 2 ) && ( pdebug & P_TX )) {
+		Serial.print(F("T Payload="));
+		for (i=0; i<LoraDown.payLength; i++) {
 			Serial.print(payLoad[i],HEX); 
 			Serial.print(':'); 
 		}
@@ -201,8 +215,15 @@ int sendPacket(uint8_t *buf, uint8_t length)
 	cp_up_pkt_fwd++;
 
 #if DUSB>=1
-	Serial.println(F("sendPacket:: fini OK"));
-#endif // DISB
+	if (( debug>=2 ) && ( pdebug & P_TX )) {
+		Serial.println(F("T sendPacket:: fini OK"));
+	}
+#endif // DUSB
+
+	// All data is in Payload and parameters and need to be transmitted.
+	// The function is called in user-space
+	_state = S_TX;										// _state set to transmit
+	
 	return 1;
 }//sendPacket
 
@@ -360,7 +381,7 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 
 #if DUSB>=1	
 	if (( debug>=2 ) && ( pdebug & P_RADIO )){
-		Serial.print(F("buildPacket:: pRSSI="));
+		Serial.print(F("R buildPacket:: pRSSI="));
 		Serial.print(prssi-rssicorr);
 		Serial.print(F(" RSSI: "));
 		Serial.print(_rssi - rssicorr);
@@ -420,8 +441,8 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 	// Encode message with messageLength into b64
 	int encodedLen = base64_enc_len(messageLength);		// max 341
 #if DUSB>=1
-	if ((debug>=1) && (encodedLen>255)) {
-		Serial.print(F("buildPacket:: b64 err, len="));
+	if ((debug>=1) && (encodedLen>255) && ( pdebug & P_RADIO )) {
+		Serial.print(F("R buildPacket:: b64 err, len="));
 		Serial.println(encodedLen);
 		if (debug>=2) Serial.flush();
 		return(-1);
@@ -461,7 +482,7 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 	++buff_index;
 	j = snprintf((char *)(buff_up + buff_index), TX_BUFF_SIZE-buff_index, "\"tmst\":%u", tmst);
 #if DUSB>=1
-	if ((j<0) && (debug>=1)) {
+	if ((j<0) && ( debug>=1 ) && ( pdebug & P_RADIO )) {
 		Serial.println(F("buildPacket:: Error "));
 	}
 #endif
@@ -546,12 +567,10 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, struct LoraUp LoraUp, bool inte
 #endif	
 	
 #if DUSB>=1
-	if (debug>=2) {
-		Serial.print(F("RXPK:: "));
+	if (( debug>=2 ) && ( pdebug & P_RX )) {
+		Serial.print(F("R RXPK:: "));
 		Serial.println((char *)(buff_up + 12));			// debug: display JSON payload
-	}
-	if (debug>= 2) {
-		Serial.print(F("RXPK:: package length="));
+		Serial.print(F("R RXPK:: package length="));
 		Serial.println(buff_index);
 	}
 #endif
@@ -655,27 +674,28 @@ int receivePacket()
 				uint16_t frameCount=LoraUp.payLoad[7]*256 + LoraUp.payLoad[6];
 
 #if DUSB>=1
+				if (( debug>=1 ) && ( pdebug & P_RX )) {
+					Serial.print(F("R receivePacket:: Ind="));
+					Serial.print(index);
+					Serial.print(F(", Len="));
+					Serial.print(LoraUp.payLength);
+					Serial.print(F(", A="));
+					for (int i=0; i<4; i++) {
+						if (DevAddr[i]<0x0F) Serial.print('0');
+						Serial.print(DevAddr[i],HEX);
+						//Serial.print(' ');
+					}
 				
-				Serial.print(F("receivePacket:: Ind="));
-				Serial.print(index);
-				Serial.print(F(", Len="));
-				Serial.print(LoraUp.payLength);
-				Serial.print(F(", A="));
-				for (int i=0; i<4; i++) {
-					if (DevAddr[i]<0x0F) Serial.print('0');
-					Serial.print(DevAddr[i],HEX);
-					//Serial.print(' ');
+					Serial.print(F(", Msg="));
+					for (int i=0; (i<statr[0].datal) && (i<23); i++) {
+						if (statr[0].data[i]<0x0F) Serial.print('0');
+						Serial.print(statr[0].data[i],HEX);
+						Serial.print(' ');
+					}
+					Serial.println();
 				}
-				
-				Serial.print(F(", Msg="));
-				for (int i=0; (i<statr[0].datal) && (i<23); i++) {
-					if (statr[0].data[i]<0x0F) Serial.print('0');
-					Serial.print(statr[0].data[i],HEX);
-					Serial.print(' ');
-				}
-				Serial.println();
 			}
-			else if (debug>=2) {
+			else if (( debug>=2 ) && ( pdebug & P_RX )) {
 					Serial.println(F("receivePacket:: No Index"));
 			}
 #endif //DUSB

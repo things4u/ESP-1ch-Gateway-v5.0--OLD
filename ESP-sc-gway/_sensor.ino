@@ -1,7 +1,7 @@
 // sensor.ino; 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg
-// Verison 5.3.2
-// Date: 2018-07-07
+// Verison 5.3.3
+// Date: 2018-08-25
 //
 // All rights reserved. This program and the accompanying materials
 // are made available under the terms of the MIT License
@@ -105,7 +105,7 @@ static int LoRaSensors(uint8_t *buf) {
 #if _GPS==1
 #if DUSB>=1
 	if (debug>=0)
-		Serial.print(F("GPS "));
+		Serial.print(F("M GPS "));
 
 	if (( debug>=1 ) && ( pdebug & P_MAIN )) {
 		Serial.print("\tLatitude  : ");
@@ -611,10 +611,10 @@ int sensorPacket() {
 uint8_t encodePacket(uint8_t *Data, uint8_t DataLength, uint16_t FrameCount, uint8_t *DevAddr, uint8_t *AppSKey, uint8_t Direction) {
 
 #if DUSB>=1
-	if (debug>=2) {
-		Serial.print(F("encodePacket:: DevAddr="));
+	if (( debug>=2 ) && ( pdebug & P_GUI )) {
+		Serial.print(F("G encodePacket:: DevAddr="));
 		for (int i=0; i<4; i++ ) { Serial.print(DevAddr[i],HEX); Serial.print(' '); }
-		Serial.print(F("encodePacket:: AppSKey="));
+		Serial.print(F("G encodePacket:: AppSKey="));
 		for (int i=0; i<16; i++ ) { Serial.print(AppSKey[i],HEX); Serial.print(' '); }
 		Serial.println();
 	}

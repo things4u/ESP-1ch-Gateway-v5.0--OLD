@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.3.2
-// Date: 2018-07-07
+// Version 5.3.3
+// Date: 2018-08-25
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -392,7 +392,9 @@ uint8_t receivePkt(uint8_t *payload)
 	uint8_t crcUsed = readRegister(REG_HOP_CHANNEL);
 	if (crcUsed & 0x40) {
 #if DUSB>=1
-		if (debug>=2) Serial.println(F("rxPkt:: CRC used"));
+		if (( debug>=2) && (pdebug & P_RX )) {
+			Serial.println(F("R rxPkt:: CRC used"));
+		}
 #endif
 	}
 	
@@ -618,30 +620,60 @@ bool sendPkt(uint8_t *payLoad, uint8_t payLength)
 // As we use delay() only when there is still enough time to wait and we use micros()
 // to make sure that delay() did not take too much time this works.
 // 
-// Parameter: uint32-t tmst gives the micros() value when transmission should start.
+// Parameter: uint32-t tmst gives the micros() value when transmission should start. (!!!)
+// Note: We assume LoraDown.sfTx contains the SF we will use for downstream message.
 // ----------------------------------------------------------------------------
 
-void loraWait(uint32_t tmst)
+void loraWait(const uint32_t timestamp)
 {
 	uint32_t startMics = micros();						// Start of the loraWait function
-	tmst += txDelay;
+	uint32_t tmst = timestamp;
+// XXX
+	int32_t adjust=0;
+	switch (LoraDown.sfTx) {
+		case 7: adjust= 60000; break;					// Make time for SF7 longer 
+		case 8: break;									// Around 60ms
+		case 9: break;
+		case 10: break;
+		case 11: break;
+		case 12: break;
+		default:
+#if DUSB>=1
+		if (( debug>=1 ) && ( pdebug & P_TX )) {
+			Serial.print(F("T loraWait:: unknown SF="));
+			Serial.print(LoraDown.sfTx);
+		}
+#endif
+	}
+	tmst = tmst + txDelay + adjust;						// tmst based on txDelay and spreading factor
 	uint32_t waitTime = tmst - micros();
-		
+	if (waitTime<0) {
+		Serial.println(F("loraWait:: Error wait time < 0"));
+		return;
+	}
+	
+	// For larger delay times we use delay() since that is for > 15ms
+	// This is the most efficient way
 	while (waitTime > 16000) {
 		delay(15);										// ms delay including yield, slightly shorter
 		waitTime= tmst - micros();
 	}
+	// The remaining wait time is less tan 15000 uSecs
+	// And we use delayMicroseconds() to wait
 	if (waitTime>0) delayMicroseconds(waitTime);
-#if DUSB>=2
+
+#if DUSB>=1
 	else if ((waitTime+20) < 0) {
-		Serial.println(F("loraWait TOO LATE"));
+		Serial.println(F("loraWait:: TOO LATE"));		// Never happens
 	}
-	
-	if (debug >=1) { 
-		Serial.print(F("start: ")); 
+
+	if (( debug>=2 ) && ( pdebug & P_TX )) { 
+		Serial.print(F("T start: ")); 
 		Serial.print(startMics);
-		Serial.print(F(", end: "));
+		Serial.print(F(", tmst: "));					// tmst
 		Serial.print(tmst);
+		Serial.print(F(", end: "));						// This must be micros(), and equal to tmst
+		Serial.print(micros());
 		Serial.print(F(", waited: "));
 		Serial.print(tmst - startMics);
 		Serial.print(F(", delay="));
@@ -1032,8 +1064,9 @@ void startReceiver() {
 	initLoraModem();								// XXX 180326, after adapting this function 
 	if (_cad) {
 #if DUSB>=1
-		if (( debug>=1 ) && ( pdebug & P_MAIN )) {
-			Serial.print(F("PULL:: _state set to S_SCAN"));
+		if (( debug>=1 ) && ( pdebug & P_SCAN )) {
+			Serial.println(F("S PULL:: _state set to S_SCAN"));
+			if (debug>=2) Serial.flush();
 		}
 #endif
 		_state = S_SCAN;

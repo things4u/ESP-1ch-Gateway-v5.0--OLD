@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.3.2
-// Date: 2018-07-07
+// Version 5.3.3
+// Date: 2018-08-25
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -31,10 +31,11 @@ void init_oLED()
 {
 #if defined OLED_RST
 	pinMode(OLED_RST,OUTPUT);
-	digitalWrite(OLED_RST, LOW); // low to reset OLED
+	digitalWrite(OLED_RST, LOW); 	// low to reset OLED
 	delay(50); 
-	digitalWrite(OLED_RST, HIGH); // must be high to turn on OLED
+	digitalWrite(OLED_RST, HIGH); 	// must be high to turn on OLED
 	delay(50);
+#else
 #endif
 	// Initialising the UI will init the display too.
 	display.init();

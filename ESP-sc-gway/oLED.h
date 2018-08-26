@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.3.2
-// Date: 2018-07-07
+// Version 5.3.3
+// Date: 2018-08-25
 //
 // based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 // and many others.
@@ -26,7 +26,7 @@
 // The following OLDs are supported:
 // 0. No OLED connected
 // 1. 0.9" OLED (cheap)
-// 2. 1.3" OLED with much better display
+// 2. 1.3" OLED with much better and larger display
 
 #if OLED>=1										// If OLED is used
 
@@ -44,7 +44,7 @@
 #elif _PIN_OUT==4								// TTGO (onboard version used, also for DIY)
 #define OLED_SCL 15								// GPIO15 / 
 #define OLED_SDA 4								// GPIO4 / 
-#define OLED_RST 16
+#define OLED_RST 16								// Reset pin (Some OLED displays do not have it)
 
 #endif
 

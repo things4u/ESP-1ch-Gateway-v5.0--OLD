@@ -1,6 +1,6 @@
 # Single Channel LoRaWAN Gateway
 
-Version 5.3.2, July 07, 2018  
+Version 5.3.3, August 25, 2018  
 Author: M. Westenberg (mw12554@hotmail.com)  
 Copyright: M. Westenberg (mw12554@hotmail.com)  
 
@@ -15,6 +15,15 @@ Maintained by Maarten Westenberg (mw12554@hotmail.com)
 
 
 # Release Notes
+
+New features in version 5.3.3 (August 25, 2018)
+- Bug Fixing SPIFFS Format in GUI
+- Included a confirm dialog in RESET, BOOT and STATISTICS buttons for user to confirm
+- Repaired WlanConnect issues
+- Improved Downlink function. Work for SF8-SF10. Does not work reliable for SF7, SF11, SF12
+- Provided documentation button o top of page
+- Added expert mode button in GUI (Wifi, System and Interrupt data is only shown in expert mode)
+- bug fixes and documentation
 
 New features in version 5.3.2 (July 07, 2018)
 - Support for local decoding of sensor messages received by the gateway. 
@@ -169,7 +178,7 @@ New features in version 3.3.0 (January 1, 2017)):
 New features in version 3.2.2 (December 29, 2016)):
 
 - Repair the situation where WIFIMANAGER was set to 0 in the ESP-sc-gway.h file. The sketch would not compile which is now repaired
-- The compiler would issue a set of warnings related to the ssid and passw setting in the ESP-sc-geway.h file. Compiler was complaining (and it should) because char* were statically initialised and modified in the code.
+- The compiler would issue a set of warnings related to the ssid and passw setting in the ESP-sc-gway.h file. Compiler was complaining (and it should) because char* were statically initialised and modified in the code.
 
 New features in version 3.2.1 (December 20, 2016)):
 

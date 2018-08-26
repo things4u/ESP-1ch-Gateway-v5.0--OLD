@@ -1,7 +1,7 @@
 // 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016, 2017, 2018 Maarten Westenberg version for ESP8266
-// Version 5.3.2		
-// Date: 2018-07-07
+// Version 5.3.3		
+// Date: 2018-08-25
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -49,6 +49,7 @@ int initConfig(struct espGwayConfig *c) {
 	(*c).pdebug = P_GUI;
 	(*c).cad = _CAD;
 	(*c).hop = false;
+	(*c).expert = false;
 }
 
 
@@ -63,10 +64,10 @@ int readConfig(const char *fn, struct espGwayConfig *c) {
 #endif
 	if (!SPIFFS.exists(fn)) {
 #if DUSB>=1
-		if (( debug >= 0 ) && ( pdebug & P_MAIN ))
-		Serial.print(F("ERROR:: readConfig, file="));
+		if (( debug>=0 ) && ( pdebug & P_MAIN ))
+		Serial.print(F("M ERR:: readConfig, file="));
 		Serial.print(fn);
-		Serial.print(F(" does not exist .. Formatting"));
+		Serial.println(F(" does not exist .. Formatting"));
 #endif
 		SPIFFS.format();
 		initConfig(c);
@@ -92,7 +93,7 @@ int readConfig(const char *fn, struct espGwayConfig *c) {
 		if (tries >= 10) {
 			f.close();
 #if DUSB>=1
-			if (( debug >= 0 ) && ( pdebug & P_MAIN ))
+			if (( debug>=0 ) && ( pdebug & P_MAIN ))
 				Serial.println(F("Formatting"));
 #endif
 			SPIFFS.format();
@@ -186,11 +187,15 @@ int readConfig(const char *fn, struct espGwayConfig *c) {
 		}
 		else if (id == "FILEREC") {								// FILEREC setting
 			id_print(id, val);
-			(*c).logFileRec = (uint8_t) val.toInt();
+			(*c).logFileRec = (uint16_t) val.toInt();
 		}
 		else if (id == "FILENUM") {								// FILEREC setting
 			id_print(id, val);
-			(*c).logFileNum = (uint8_t) val.toInt();
+			(*c).logFileNum = (uint16_t) val.toInt();
+		}
+		else if (id == "EXPERT") {								// FILEREC setting
+			id_print(id, val);
+			(*c).expert = (uint8_t) val.toInt();
 		}
 		else {
 			tries++;
@@ -274,6 +279,7 @@ int writeConfig(const char *fn, struct espGwayConfig *c) {
 	f.print("FILEREC");  f.print('='); f.print((*c).logFileRec); f.print('\n');
 	f.print("FILENO");  f.print('='); f.print((*c).logFileNo); f.print('\n');
 	f.print("FILENUM");  f.print('='); f.print((*c).logFileNum); f.print('\n');
+	f.print("EXPERT");  f.print('='); f.print((*c).expert); f.print('\n');
 	
 	f.close();
 	return(1);
@@ -309,8 +315,10 @@ void addLog(const unsigned char * line, int cnt)
 	if (gwayConfig.logFileNum > LOGFILEMAX){
 		sprintf(fn,"/log-%d", gwayConfig.logFileNo - LOGFILEMAX);
 #if DUSB>=1
-		Serial.print(F("addLog:: Too many logfile, deleting="));
-		Serial.println(fn);
+		if (( debug>=0 ) && ( pdebug & P_GUI )) {
+			Serial.print(F("G addLog:: Too many logfile, deleting="));
+			Serial.println(fn);
+		}
 #endif
 		SPIFFS.remove(fn);
 		gwayConfig.logFileNum--;
@@ -324,7 +332,7 @@ void addLog(const unsigned char * line, int cnt)
 	if (!SPIFFS.exists(fn)) {
 #if DUSB>=1
 		if (( debug >= 1 ) && ( pdebug & P_GUI )) {
-			Serial.print(F("ERROR:: addLog:: file="));
+			Serial.print(F("G ERROR:: addLog:: file="));
 			Serial.print(fn);
 			Serial.print(F(" does not exist .. rec="));
 			Serial.print(gwayConfig.logFileRec);
@@ -336,8 +344,8 @@ void addLog(const unsigned char * line, int cnt)
 	File f = SPIFFS.open(fn, "a");
 	if (!f) {
 #if DUSB>=1
-		if (debug>=1) {
-			Serial.println("file open failed=");
+		if (( debug>=1 ) && ( pdebug & P_GUI )) {
+			Serial.println("G file open failed=");
 			Serial.println(fn);
 		}
 #endif
@@ -347,7 +355,7 @@ void addLog(const unsigned char * line, int cnt)
 	int i;
 #if DUSB>=1
 	if (( debug>=1 ) && ( pdebug & P_GUI )) {
-		Serial.print(F("addLog:: fileno="));
+		Serial.print(F("G addLog:: fileno="));
 		Serial.print(gwayConfig.logFileNo);
 		Serial.print(F(", rec="));
 		Serial.print(gwayConfig.logFileRec);
