@@ -35,6 +35,9 @@
 // Define Pattern debug settings, this allows debugging per
 // module rather than per level. See also pdebug.
 //
+#ifndef LORAFILES_H_
+#define LORAFILES_H_
+
 #define P_SCAN		0x01
 #define P_CAD		0x02
 #define P_RX		0x04
@@ -90,3 +93,4 @@ struct espGwayConfig {
 #define LOGFILEREC 100
 
 #endif
+#endif //LORAFILES_H_

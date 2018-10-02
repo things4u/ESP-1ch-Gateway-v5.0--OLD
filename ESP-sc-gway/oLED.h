@@ -27,6 +27,8 @@
 // 0. No OLED connected
 // 1. 0.9" OLED (cheap)
 // 2. 1.3" OLED with much better and larger display
+#ifndef OLED_H_
+#define OLED_H_
 
 #if OLED>=1										// If OLED is used
 
@@ -66,3 +68,4 @@ SH1106  display(OLED_ADDR, OLED_SDA, OLED_SCL);	// i2c ADDR & SDA, SCL on wemos
 #endif
 
 #endif//OLED>=1
+#endif//OLED_H_

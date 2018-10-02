@@ -20,6 +20,8 @@
 // too much code compiled and loaded on your ESP8266.
 //
 // ----------------------------------------------------------------------------------------
+#ifndef ESP_SC_GWAY_H_
+#define ESP_SC_GWAY_H_
 
 #define VERSION "V.5.3.3.H; 180825a"
 
@@ -135,7 +137,7 @@
 // OLED==0; No OLED display connected
 // OLED==1; 0.9 Oled Screen based on SSD1306
 // OLED==2;	1"3 Oled screens for Wemos, 128x64 SH1106
-#define OLED 2
+#define OLED 1
 
 
 // Define whether we want to manage the gateway over UDP (next to management 
@@ -271,3 +273,4 @@ wpas wpa[] = {
 #else
 #define ASSERT(cond) /**/
 #endif
+#endif //ESP_SC_GWAY_H_
