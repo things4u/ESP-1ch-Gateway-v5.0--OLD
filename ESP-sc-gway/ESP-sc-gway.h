@@ -137,7 +137,7 @@
 // OLED==0; No OLED display connected
 // OLED==1; 0.9 Oled Screen based on SSD1306
 // OLED==2;	1"3 Oled screens for Wemos, 128x64 SH1106
-#define OLED 1
+#define OLED 2
 
 
 // Define whether we want to manage the gateway over UDP (next to management 
