@@ -119,8 +119,8 @@
 
 // Define the name of the accesspoint if the gateway is in accesspoint mode (is
 // getting WiFi SSID and password using WiFiManager)
-#define AP_NAME "NETGEAR"
-#define AP_PASSWD "JuRiOZecla"
+#define AP_NAME ""
+#define AP_PASSWD ""
 
 // This section defines whether we use the gateway as a repeater
 // For his, we use another output channle as the channel (default==0) we are 
@@ -262,7 +262,7 @@ struct wpas {
 //
 wpas wpa[] = {
 	{ "" , "" },							// Reserved for WiFi Manager
-	{ "NETGEAR", "JuRiOZecla" },
+	{ "", "" },
 	{ "ape", "beer" }
 };
 
