@@ -163,7 +163,7 @@ int WlanReadWpa() {
 	Serial.print(wpa[0].passw);
 	Serial.println(F(">"));
 #endif
-
+	return 0;//Ldo: Function should return something
 }
 
 

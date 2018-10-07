@@ -20,7 +20,8 @@
 //
 //
 // ------------------------------------------------------------------------------------
-
+#ifndef LORAMODEM_H_
+#define LORAMODEM_H_
 
 // ----------------------------------------
 // Used by REG_PAYLOAD_LENGTH to set receive payload length
@@ -509,3 +510,4 @@ struct LoraUp {
 #define MGT_SET_SF					0x16
 #define MGT_SET_FREQ				0x17
 
+#endif

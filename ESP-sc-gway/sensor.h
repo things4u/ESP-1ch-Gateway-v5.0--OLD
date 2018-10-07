@@ -20,6 +20,8 @@
 //
 //
 // ------------------------------------------------------------------------------------
+#ifndef SENSOR_H_
+#define SENSOR_H_
 
 #if _TRUSTED_NODES >= 1
 struct nodex {
@@ -92,3 +94,4 @@ codex decodes[] = {
 	}					
 };
 #endif //_LOCALSERVER
+#endif //SENSOR_H_

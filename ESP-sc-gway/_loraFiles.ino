@@ -50,6 +50,7 @@ int initConfig(struct espGwayConfig *c) {
 	(*c).cad = _CAD;
 	(*c).hop = false;
 	(*c).expert = false;
+	return 0;//Ldo: should return something
 }
 
 

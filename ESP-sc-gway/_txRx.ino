@@ -626,7 +626,8 @@ int receivePacket()
 			
 			// This is one of the potential problem areas.
 			// If possible, USB traffic should be left out of interrupt routines
-			// rxpk PUSH_DATA received from node is rxpk (*2, par. 3.2)
+/*			// rxpk PUSH_DATA received from node is rxpk (*2, par. 3.2)
+
 #ifdef _TTNSERVER
 			if (!sendUdp(ttnServer, _TTNPORT, buff_up, build_index)) {
 				return(-1); 							// received a message
@@ -639,7 +640,7 @@ int receivePacket()
 				return(-2); 							// received a message
 			}
 #endif
-
+*/
 #if _LOCALSERVER==1
 			// Or special case, we do not use a local server to receive
 			// and decode the server. We use buildPacket() to call decode

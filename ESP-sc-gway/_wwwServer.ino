@@ -841,6 +841,183 @@ static void sensorData()
 #endif
 }
 
+// ----------------------------------------------------------------------------
+// WIFI CONFIG
+// wifiData() displays the most important Wifi parameters gathered
+//
+// ----------------------------------------------------------------------------
+static void wifiData()
+{
+	if (gwayConfig.expert) {
+	String response="";
+	response +="<h2>WiFi Config</h2>";
+
+	response +="<table class=\"config_table\">";
+
+	response +="<tr><th class=\"thead\">Parameter</th><th class=\"thead\">Value</th></tr>";
+
+	response +="<tr><td class=\"cell\">WiFi host</td><td class=\"cell\">";
+#if ESP32_ARCH==1
+	response +=WiFi.getHostname(); response+="</tr>";
+#else
+	response +=wifi_station_get_hostname(); response+="</tr>";
+#endif
+
+	response +="<tr><td class=\"cell\">WiFi SSID</td><td class=\"cell\">";
+	response +=WiFi.SSID(); response+="</tr>";
+
+	response +="<tr><td class=\"cell\">IP Address</td><td class=\"cell\">";
+	printIP((IPAddress)WiFi.localIP(),'.',response);
+	response +="</tr>";
+	response +="<tr><td class=\"cell\">IP Gateway</td><td class=\"cell\">";
+	printIP((IPAddress)WiFi.gatewayIP(),'.',response);
+	response +="</tr>";
+	response +="<tr><td class=\"cell\">NTP Server</td><td class=\"cell\">"; response+=NTP_TIMESERVER; response+="</tr>";
+	response +="<tr><td class=\"cell\">LoRa Router</td><td class=\"cell\">"; response+=_TTNSERVER; response+="</tr>";
+	response +="<tr><td class=\"cell\">LoRa Router IP</td><td class=\"cell\">";
+	printIP((IPAddress)ttnServer,'.',response);
+	response +="</tr>";
+#ifdef _THINGSERVER
+	response +="<tr><td class=\"cell\">LoRa Router 2</td><td class=\"cell\">"; response+=_THINGSERVER;
+	response += String() + ":" + _THINGPORT + "</tr>";
+	response +="<tr><td class=\"cell\">LoRa Router 2 IP</td><td class=\"cell\">";
+	printIP((IPAddress)thingServer,'.',response);
+	response +="</tr>";
+#endif
+	response +="</table>";
+
+	server.sendContent(response);
+	} // gwayConfig.expert
+} // wifiData
+
+
+// ----------------------------------------------------------------------------
+// SYSTEMDATA
+// This section contain a number of system specific data such as heap size etc.
+// ----------------------------------------------------------------------------
+static void systemData()
+{
+	if (gwayConfig.expert) {
+		String response="";
+		response +="<h2>System Status</h2>";
+
+		response +="<table class=\"config_table\">";
+		response +="<tr>";
+		response +="<th class=\"thead\">Parameter</th>";
+		response +="<th class=\"thead\">Value</th>";
+		response +="<th colspan=\"2\" class=\"thead\">Set</th>";
+		response +="</tr>";
+
+		response +="<tr><td style=\"border: 1px solid black; width:120px;\">Gateway ID</td>";
+		response +="<td class=\"cell\">";
+		if (MAC_array[0]< 0x10) response +='0'; response +=String(MAC_array[0],HEX);	// The MAC array is always returned in lowercase
+		if (MAC_array[1]< 0x10) response +='0'; response +=String(MAC_array[1],HEX);
+		if (MAC_array[2]< 0x10) response +='0'; response +=String(MAC_array[2],HEX);
+		response +="FFFF";
+		if (MAC_array[3]< 0x10) response +='0'; response +=String(MAC_array[3],HEX);
+		if (MAC_array[4]< 0x10) response +='0'; response +=String(MAC_array[4],HEX);
+		if (MAC_array[5]< 0x10) response +='0'; response +=String(MAC_array[5],HEX);
+		response+="</tr>";
+
+
+		response +="<tr><td class=\"cell\">Free heap</td><td class=\"cell\">"; response+=ESP.getFreeHeap(); response+="</tr>";
+// XXX We Shoudl find an ESP32 alternative
+#if !defined ESP32_ARCH
+		response +="<tr><td class=\"cell\">ESP speed</td><td class=\"cell\">"; response+=ESP.getCpuFreqMHz();
+		response +="<td style=\"border: 1px solid black; width:40px;\"><a href=\"SPEED=80\"><button>80</button></a></td>";
+		response +="<td style=\"border: 1px solid black; width:40px;\"><a href=\"SPEED=160\"><button>160</button></a></td>";
+		response+="</tr>";
+		response +="<tr><td class=\"cell\">ESP Chip ID</td><td class=\"cell\">"; response+=ESP.getChipId(); response+="</tr>";
+#endif
+		response +="<tr><td class=\"cell\">OLED</td><td class=\"cell\">"; response+=OLED; response+="</tr>";
+
+#if STATISTICS>=1
+		response +="<tr><td class=\"cell\">WiFi Setups</td><td class=\"cell\">"; response+=gwayConfig.wifis; response+="</tr>";
+		response +="<tr><td class=\"cell\">WWW Views</td><td class=\"cell\">"; response+=gwayConfig.views; response+="</tr>";
+#endif
+
+		response +="</table>";
+		server.sendContent(response);
+	} // gwayConfig.expert
+} // systemData
+
+
+// ----------------------------------------------------------------------------
+// INTERRUPT DATA
+// Display interrupt data, but only for debug >= 2
+//
+// ----------------------------------------------------------------------------
+static void interruptData()
+{
+	if (gwayConfig.expert) {
+		uint8_t flags = readRegister(REG_IRQ_FLAGS);
+		uint8_t mask = readRegister(REG_IRQ_FLAGS_MASK);
+		String response="";
+
+		response +="<h2>System State and Interrupt</h2>";
+
+		response +="<table class=\"config_table\">";
+		response +="<tr>";
+		response +="<th class=\"thead\">Parameter</th>";
+		response +="<th class=\"thead\">Value</th>";
+		response +="<th colspan=\"2\"  class=\"thead\">Set</th>";
+		response +="</tr>";
+
+		response +="<tr><td class=\"cell\">_state</td>";
+		response +="<td class=\"cell\">";
+		switch (_state) {							// See loraModem.h
+			case S_INIT: response +="INIT"; break;
+			case S_SCAN: response +="SCAN"; break;
+			case S_CAD: response +="CAD"; break;
+			case S_RX: response +="RX"; break;
+			case S_TX: response +="TX"; break;
+			default: response +="unknown"; break;
+		}
+		response +="</td></tr>";
+
+		response +="<tr><td class=\"cell\">flags (8 bits)</td>";
+		response +="<td class=\"cell\">0x";
+		if (flags <16) response += "0";
+		response +=String(flags,HEX); response+="</td></tr>";
+
+
+		response +="<tr><td class=\"cell\">mask (8 bits)</td>";
+		response +="<td class=\"cell\">0x";
+		if (mask <16) response += "0";
+		response +=String(mask,HEX); response+="</td></tr>";
+
+		response +="<tr><td class=\"cell\">Re-entrant cntr</td>";
+		response +="<td class=\"cell\">";
+		response += String() + gwayConfig.reents;
+		response +="</td></tr>";
+
+		response +="<tr><td class=\"cell\">ntp call cntr</td>";
+		response +="<td class=\"cell\">";
+		response += String() + gwayConfig.ntps;
+		response+="</td></tr>";
+
+		response +="<tr><td class=\"cell\">ntpErr cntr</td>";
+		response +="<td class=\"cell\">";
+		response += String() + gwayConfig.ntpErr;
+		response +="</td>";
+		response +="<td colspan=\"2\" style=\"border: 1px solid black;\">";
+		stringTime(gwayConfig.ntpErrTime, response);
+		response +="</td>";
+		response +="</tr>";
+
+		response +="<tr><td class=\"cell\">Time Correction (uSec)</td><td class=\"cell\">";
+		response += txDelay;
+		response +="</td>";
+		response +="<td class=\"cell\"><a href=\"DELAY=-1\"><button>-</button></a></td>";
+		response +="<td class=\"cell\"><a href=\"DELAY=1\"><button>+</button></a></td>";
+		response +="</tr>";
+
+		response +="</table>";
+
+		server.sendContent(response);
+	}// if gwayConfig.expert
+} // interruptData
+
 
 // ----------------------------------------------------------------------------
 // SEND WEB PAGE() 
@@ -1224,7 +1401,7 @@ void setupWWW()
 } // setupWWW
 
 
-
+/* //Ldo: Functions wifiData() systemData() interruptData() should be before sendWebPage() to compile under Sloeber
 // ----------------------------------------------------------------------------
 // WIFI CONFIG
 // wifiData() displays the most important Wifi parameters gathered
@@ -1401,6 +1578,6 @@ static void interruptData()
 		server.sendContent(response);
 	}// if gwayConfig.expert
 } // interruptData
-
+*/
 #endif // A_SERVER==1
 
