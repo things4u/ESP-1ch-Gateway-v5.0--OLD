@@ -89,7 +89,7 @@
 //	4: ESP32 TTGO pinning (should work for 433 and OLED too).
 //	5: ESP32 TTGO EU433 MHz with OLED
 //	6: Other, define your own in loraModem.h
-#define _PIN_OUT 1
+#define _PIN_OUT 4
 
 // Gather statistics on sensor and Wifi status
 // 0= No statistics
@@ -119,8 +119,8 @@
 
 // Define the name of the accesspoint if the gateway is in accesspoint mode (is
 // getting WiFi SSID and password using WiFiManager)
-#define AP_NAME "YourName"
-#define AP_PASSWD "YourPassword"
+#define AP_NAME "NETGEAR"
+#define AP_PASSWD "JuRiOZecla"
 
 // This section defines whether we use the gateway as a repeater
 // For his, we use another output channle as the channel (default==0) we are 
@@ -137,7 +137,7 @@
 // OLED==0; No OLED display connected
 // OLED==1; 0.9 Oled Screen based on SSD1306
 // OLED==2;	1"3 Oled screens for Wemos, 128x64 SH1106
-#define OLED 2
+#define OLED 1
 
 
 // Define whether we want to manage the gateway over UDP (next to management 
@@ -191,7 +191,7 @@
 
 // This defines whether or not we would use the gateway as 
 // as sort of backend system which decodes messages (see sensor.h file)
-#define _LOCALSERVER 0						// See server definitions for decodes
+#define _LOCALSERVER 1						// See server definitions for decodes
 
 // Gateway Ident definitions
 #define _DESCRIPTION "ESP Gateway"			// Name of the gateway
@@ -262,7 +262,7 @@ struct wpas {
 //
 wpas wpa[] = {
 	{ "" , "" },							// Reserved for WiFi Manager
-	{ "fire", "water" },
+	{ "NETGEAR", "JuRiOZecla" },
 	{ "ape", "beer" }
 };
 

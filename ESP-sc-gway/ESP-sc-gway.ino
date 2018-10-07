@@ -132,7 +132,7 @@ using namespace std;
 
 byte currentMode = 0x81;
 
-bool sx1272 = true;								// Actually we use sx1276/RFM95
+bool sx1272 = false;								// Actually we use sx1276/RFM95
 
 uint32_t cp_nb_rx_rcv;							// Number of messages received by gateway
 uint32_t cp_nb_rx_ok;							// Number of messages received OK
