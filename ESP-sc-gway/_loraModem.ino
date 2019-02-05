@@ -647,7 +647,8 @@ void loraWait(const uint32_t timestamp)
 	}
 	tmst = tmst + txDelay + adjust;						// tmst based on txDelay and spreading factor
 	uint32_t waitTime = tmst - micros();
-	if (waitTime<0) {
+//	if (waitTime<0) { //uint32_t is never negative! If micros() is > tmst, waitTime assume a very big value and the app hangs
+	if (micros()>tmst) { // test if the tmst is in the past to avoid hangs
 		Serial.println(F("loraWait:: Error wait time < 0"));
 		return;
 	}
