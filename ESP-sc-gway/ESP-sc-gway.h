@@ -31,7 +31,7 @@
 
 // Debug message will be put on Serial is this one is set.
 // If set to 0, not USB Serial prints are done
-// Set to 1 it will prinr all user level messages (with correct debug set)
+// Set to 1 it will print all user level messages (with correct debug set)
 // If set to 2 it will also print interrupt messages (not recommended)
 #define DUSB 1
 
@@ -41,7 +41,7 @@
 // Normally, value 0 is a good default.
 #define _SPIFF_FORMAT 0
 
-// Define the LoRa Frequncy band that is used. TTN Supported values are 925MHz, 868MHz and 433MHz.
+// Define the LoRa Frequncy band that is used. TTN Supported values are 915MHz, 868MHz and 433MHz.
 // So supported values are: 433 868 915
 #define _LFREQ 868
 
