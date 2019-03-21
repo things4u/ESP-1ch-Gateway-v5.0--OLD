@@ -644,6 +644,7 @@ void loraWait(const uint32_t timestamp)
 			Serial.print(LoraDown.sfTx);
 		}
 #endif
+		break; // to avoid compiler error when DUSB==0
 	}
 	tmst = tmst + txDelay + adjust;						// tmst based on txDelay and spreading factor
 	uint32_t waitTime = tmst - micros();
