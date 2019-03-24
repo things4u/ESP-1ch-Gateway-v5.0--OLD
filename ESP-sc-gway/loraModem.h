@@ -105,7 +105,7 @@ int freqs [] = {
 	904700000, 									// Ch 4, SF7BW125 to SF10BW125
 	904900000, 									// Ch 5, SF7BW125 to SF10BW125
 	905100000, 									// Ch 6, SF7BW125 to SF10BW125
-	905100000, 									// Ch 7, SF7BW125 to SF10BW125
+	905300000, 									// Ch 7, SF7BW125 to SF10BW125
 	904600000 									// Ch 8, SF8BW500 
 	// Downlink
 	// We should specify downlink frequencies here											
