@@ -60,7 +60,7 @@ int sendPacket(uint8_t *buf, uint8_t length)
 	//		CFList (fill to 16 bytes)
 			
 	int i=0;
-	StaticJsonBuffer<312> jsonBuffer;
+	StaticJsonDocument<312> jsonBuffer;
 	char * bufPtr = (char *) (buf);
 	buf[length] = 0;
 	
@@ -73,9 +73,9 @@ int sendPacket(uint8_t *buf, uint8_t length)
 #endif
 	// Use JSON to decode the string after the first 4 bytes.
 	// The data for the node is in the "data" field. This function destroys original buffer
-	JsonObject& root = jsonBuffer.parseObject(bufPtr);
+  auto error = deserializeJson(jsonBuffer, bufPtr);
 		
-	if (!root.success()) {
+	if (error) {
 #if DUSB>=1
 		if (( debug>=1) && (pdebug & P_TX)) {
 			Serial.print (F("T sendPacket:: ERROR Json Decode"));
@@ -94,6 +94,7 @@ int sendPacket(uint8_t *buf, uint8_t length)
 	// {"txpk":{"codr":"4/5","data":"YCkEAgIABQABGmIwYX/kSn4Y","freq":868.1,"ipol":true,"modu":"LORA","powe":14,"rfch":0,"size":18,"tmst":1890991792,"datr":"SF7BW125"}}
 
 	// Used in the protocol of Gateway:
+  JsonObject root = jsonBuffer.to<JsonObject>();
 	const char * data	= root["txpk"]["data"];			// Downstream Payload
 	uint8_t psize		= root["txpk"]["size"];
 	bool ipol			= root["txpk"]["ipol"];
@@ -710,4 +711,3 @@ int receivePacket()
 	return(0);											// failure no message read
 	
 }//receivePacket
-
