@@ -178,7 +178,7 @@ void writeBuffer(uint8_t addr, uint8_t *buf, uint8_t len)
 //		CRC_ON == 0x04
 // ----------------------------------------------------------------------------
 
-void setRate(uint8_t sf, uint8_t crc) 
+void setRate(uint8_t sf, uint8_t crc, bool bw500_4_5 = false) 
 {
 	uint8_t mc1=0, mc2=0, mc3=0;
 #if DUSB>=2
@@ -190,6 +190,7 @@ void setRate(uint8_t sf, uint8_t crc)
 		return;
 	}
 #endif
+
 	// Set rate based on Spreading Factor etc
     if (sx1272) {
 		mc1= 0x0A;				// SX1276_MC1_BW_250 0x80 | SX1276_MC1_CR_4_5 0x02
@@ -206,9 +207,14 @@ void setRate(uint8_t sf, uint8_t crc)
 		else {
 			mc1= 0x72;				// SX1276_MC1_BW_125==0x70 | SX1276_MC1_CR_4_5==0x02
 		}
+
+		if (bw500_4_5) {
+      		mc1 = 0x92;
+    	}
+
 		mc2= ((sf<<4) | crc) & 0xFF; // crc is 0x00 or 0x04==SX1276_MC2_RX_PAYLOAD_CRCON
 		mc3= 0x04;				// 0x04; SX1276_MC3_AGCAUTO
-        if (sf == SF11 || sf == SF12) { mc3|= 0x08; }		// 0x08 | 0x04
+        if ((sf == SF11 || sf == SF12) && (bw500_4_5 == false) ) { mc3|= 0x08; }		// 0x08 | 0x04
     }
 	
 	// Implicit Header (IH), for class b beacons (&& SF6)
@@ -729,7 +735,15 @@ void txLoraModem(uint8_t *payLoad, uint8_t payLength, uint32_t tmst, uint8_t sfT
 	}
 #endif
 	_state = S_TX;
-		
+
+	bool bw500_4_5 = false;	
+
+#if _STRICT_1CH
+  bw500_4_5 = false;
+#elif _LFREQ==915
+  bw500_4_5 = true;
+#endif
+
 	// 1. Select LoRa modem from sleep mode
 	//opmode(OPMODE_LORA);									// set register 0x01 to 0x80
 	
@@ -740,7 +754,7 @@ void txLoraModem(uint8_t *payLoad, uint8_t payLength, uint32_t tmst, uint8_t sfT
 	opmode(OPMODE_STANDBY);									// set 0x01 to 0x01
 	
 	// 3. Init spreading factor and other Modem setting
-	setRate(sfTx, crc);
+	setRate(sfTx, crc, bw500_4_5);
 	
 	// Frquency hopping
 	//writeRegister(REG_HOP_PERIOD, (uint8_t) 0x00);		// set 0x24 to 0x00 only for receivers
