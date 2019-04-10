@@ -1,232 +1,208 @@
 // ArduinoJson - arduinojson.org
-// Copyright Benoit Blanchon 2014-2018
+// Copyright Benoit Blanchon 2014-2019
 // MIT License
 
 #include <ArduinoJson.h>
 #include <stdint.h>
 #include <catch.hpp>
 
+namespace my {
+using ARDUINOJSON_NAMESPACE::isinf;
+}  // namespace my
+
 static const char* null = 0;
 
 TEST_CASE("JsonVariant::as()") {
-  SECTION("DoubleAsBool") {
-    JsonVariant variant = 4.2;
+  DynamicJsonDocument doc(4096);
+  JsonVariant variant = doc.to<JsonVariant>();
+
+  SECTION("not set") {
+    REQUIRE(false == variant.as<bool>());
+    REQUIRE(0 == variant.as<int>());
+    REQUIRE(0.0f == variant.as<float>());
+    REQUIRE(0 == variant.as<char*>());
+    REQUIRE("null" == variant.as<std::string>());
+  }
+
+  SECTION("set(4.2)") {
+    variant.set(4.2);
+
     REQUIRE(variant.as<bool>());
+    REQUIRE(0 == variant.as<const char*>());
+    REQUIRE(variant.as<std::string>() == "4.2");
+    REQUIRE(variant.as<long>() == 4L);
+    REQUIRE(variant.as<unsigned>() == 4U);
   }
 
-  SECTION("DoubleAsCstr") {
-    JsonVariant variant = 4.2;
-    REQUIRE_FALSE(variant.as<const char*>());
+  SECTION("set(0.0)") {
+    variant.set(0.0);
+
+    REQUIRE(variant.as<bool>() == false);
+    REQUIRE(variant.as<long>() == 0L);
   }
 
-  SECTION("DoubleAsString") {
-    JsonVariant variant = 4.2;
-    REQUIRE(std::string("4.2") == variant.as<std::string>());
+  SECTION("set(false)") {
+    variant.set(false);
+
+    REQUIRE(false == variant.as<bool>());
+    REQUIRE(variant.as<double>() == 0.0);
+    REQUIRE(variant.as<long>() == 0L);
+    REQUIRE(variant.as<std::string>() == "false");
   }
 
-  SECTION("DoubleAsLong") {
-    JsonVariant variant = 4.2;
-    REQUIRE(4L == variant.as<long>());
-  }
+  SECTION("set(true)") {
+    variant.set(true);
 
-  SECTION("DoubleAsUnsigned") {
-    JsonVariant variant = 4.2;
-    REQUIRE(4U == variant.as<unsigned>());
-  }
-
-  SECTION("DoubleZeroAsBool") {
-    JsonVariant variant = 0.0;
-    REQUIRE_FALSE(variant.as<bool>());
-  }
-
-  SECTION("DoubleZeroAsLong") {
-    JsonVariant variant = 0.0;
-    REQUIRE(0L == variant.as<long>());
-  }
-
-  SECTION("FalseAsBool") {
-    JsonVariant variant = false;
-    REQUIRE_FALSE(variant.as<bool>());
-  }
-
-  SECTION("FalseAsDouble") {
-    JsonVariant variant = false;
-    REQUIRE(0.0 == variant.as<double>());
-  }
-
-  SECTION("FalseAsLong") {
-    JsonVariant variant = false;
-    REQUIRE(0L == variant.as<long>());
-  }
-
-  SECTION("FalseAsString") {
-    JsonVariant variant = false;
-    REQUIRE(std::string("false") == variant.as<std::string>());
-  }
-
-  SECTION("TrueAsBool") {
-    JsonVariant variant = true;
     REQUIRE(variant.as<bool>());
+    REQUIRE(variant.as<double>() == 1.0);
+    REQUIRE(variant.as<long>() == 1L);
+    REQUIRE(variant.as<std::string>() == "true");
   }
 
-  SECTION("TrueAsDouble") {
-    JsonVariant variant = true;
-    REQUIRE(1.0 == variant.as<double>());
+  SECTION("set(42L)") {
+    variant.set(42L);
+
+    REQUIRE(variant.as<bool>() == true);
+    REQUIRE(variant.as<double>() == 42.0);
+    REQUIRE(variant.as<std::string>() == "42");
   }
 
-  SECTION("TrueAsLong") {
-    JsonVariant variant = true;
-    REQUIRE(1L == variant.as<long>());
+  SECTION("set(-42L)") {
+    variant.set(-42L);
+
+    REQUIRE(variant.as<double>() == -42.0);
+    REQUIRE(variant.as<std::string>() == "-42");
   }
 
-  SECTION("TrueAsString") {
-    JsonVariant variant = true;
-    REQUIRE(std::string("true") == variant.as<std::string>());
+  SECTION("set(0L)") {
+    variant.set(0L);
+
+    SECTION("as<bool>()") {
+      REQUIRE(false == variant.as<bool>());
+    }
+
+    SECTION("as<double>()") {
+      REQUIRE(variant.as<double>() == 0.0);
+    }
   }
 
-  SECTION("LongAsBool") {
-    JsonVariant variant = 42L;
-    REQUIRE(variant.as<bool>());
+  SECTION("set(null)") {
+    variant.set(null);
+
+    REQUIRE(variant.as<bool>() == false);
+    REQUIRE(variant.as<double>() == 0.0);
+    REQUIRE(variant.as<long>() == 0L);
+    REQUIRE(variant.as<std::string>() == "null");
   }
 
-  SECTION("LongZeroAsBool") {
-    JsonVariant variant = 0L;
-    REQUIRE_FALSE(variant.as<bool>());
+  SECTION("set(\"42\")") {
+    variant.set("42");
+
+    REQUIRE(variant.as<long>() == 42L);
   }
 
-  SECTION("PositiveLongAsDouble") {
-    JsonVariant variant = 42L;
-    REQUIRE(42.0 == variant.as<double>());
+  SECTION("set(\"hello\")") {
+    variant.set("hello");
+
+    REQUIRE(variant.as<bool>() == false);
+    REQUIRE(variant.as<long>() == 0L);
+    REQUIRE(variant.as<const char*>() == std::string("hello"));
+    REQUIRE(variant.as<char*>() == std::string("hello"));
+    REQUIRE(variant.as<std::string>() == std::string("hello"));
   }
 
-  SECTION("NegativeLongAsDouble") {
-    JsonVariant variant = -42L;
-    REQUIRE(-42.0 == variant.as<double>());
+  SECTION("set(std::string(\"4.2\"))") {
+    variant.set(std::string("4.2"));
+
+    REQUIRE(variant.as<long>() == 4L);
+    REQUIRE(variant.as<double>() == 4.2);
+    REQUIRE(variant.as<char*>() == std::string("4.2"));
+    REQUIRE(variant.as<std::string>() == std::string("4.2"));
   }
 
-  SECTION("LongAsString") {
-    JsonVariant variant = 42L;
-    REQUIRE(std::string("42") == variant.as<std::string>());
+  SECTION("set(\"true\")") {
+    variant.set("true");
+
+    REQUIRE(variant.as<bool>() == true);
+    REQUIRE(variant.as<int>() == 0);
   }
 
-  SECTION("LongZeroAsDouble") {
-    JsonVariant variant = 0L;
-    REQUIRE(0.0 == variant.as<double>());
+  SECTION("set(-1e300)") {
+    variant.set(-1e300);
+
+    REQUIRE(variant.as<double>() == -1e300);
+    REQUIRE(variant.as<float>() < 0);
+    REQUIRE(my::isinf(variant.as<float>()));
   }
 
-  SECTION("NullAsBool") {
-    JsonVariant variant = null;
-    REQUIRE_FALSE(variant.as<bool>());
+  SECTION("set(1e300)") {
+    variant.set(1e300);
+
+    REQUIRE(variant.as<double>() == 1e300);
+    REQUIRE(variant.as<float>() > 0);
+    REQUIRE(my::isinf(variant.as<float>()));
   }
 
-  SECTION("NullAsDouble") {
-    JsonVariant variant = null;
-    REQUIRE(0.0 == variant.as<double>());
+  SECTION("set(1e300)") {
+    variant.set(1e-300);
+
+    REQUIRE(variant.as<double>() == 1e-300);
+    REQUIRE(variant.as<float>() == 0);
   }
 
-  SECTION("NullAsLong") {
-    JsonVariant variant = null;
-    REQUIRE(0L == variant.as<long>());
-  }
-
-  SECTION("NullAsString") {
-    JsonVariant variant = null;
-    REQUIRE(std::string("null") == variant.as<std::string>());
-  }
-
-  SECTION("NumberStringAsBool") {
-    JsonVariant variant = "42";
-    REQUIRE(variant.as<bool>());
-  }
-
-  SECTION("NumberStringAsLong") {
-    JsonVariant variant = "42";
-    REQUIRE(42L == variant.as<long>());
-  }
-
-#if ARDUINOJSON_USE_LONG_LONG || ARDUINOJSON_USE_INT64
-  SECTION("NumberStringAsInt64Negative") {
-    JsonVariant variant = "-9223372036854775808";
-    REQUIRE(-9223372036854775807 - 1 == variant.as<long long>());
-  }
-
-  SECTION("NumberStringAsInt64Positive") {
-    JsonVariant variant = "9223372036854775807";
-    REQUIRE(9223372036854775807 == variant.as<long long>());
-  }
-#endif
-
-  SECTION("RandomStringAsBool") {
-    JsonVariant variant = "hello";
-    REQUIRE_FALSE(variant.as<bool>());
-  }
-
-  SECTION("RandomStringAsLong") {
-    JsonVariant variant = "hello";
-    REQUIRE(0L == variant.as<long>());
-  }
-
-  SECTION("RandomStringAsConstCharPtr") {
-    JsonVariant variant = "hello";
-    REQUIRE(std::string("hello") == variant.as<const char*>());
-  }
-
-  SECTION("RandomStringAsCharPtr") {
-    JsonVariant variant = "hello";
-    REQUIRE(std::string("hello") == variant.as<char*>());
-  }
-
-  SECTION("RandomStringAsString") {
-    JsonVariant variant = "hello";
-    REQUIRE(std::string("hello") == variant.as<std::string>());
-  }
-
-  SECTION("TrueStringAsBool") {
-    JsonVariant variant = "true";
-    REQUIRE(variant.as<bool>());
-  }
-
-  SECTION("TrueStringAsLong") {
-    JsonVariant variant = "true";
-    REQUIRE(1L == variant.as<long>());
-  }
-
-  SECTION("ObjectAsString") {
-    DynamicJsonBuffer buffer;
-
-    JsonObject& obj = buffer.createObject();
+  SECTION("to<JsonObject>()") {
+    JsonObject obj = variant.to<JsonObject>();
     obj["key"] = "value";
 
-    JsonVariant variant = obj;
-    REQUIRE(std::string("{\"key\":\"value\"}") == variant.as<std::string>());
+    SECTION("as<std::string>()") {
+      REQUIRE(variant.as<std::string>() == std::string("{\"key\":\"value\"}"));
+    }
+
+    SECTION("ObjectAsJsonObject") {
+      JsonObject o = variant.as<JsonObject>();
+      REQUIRE(o.size() == 1);
+      REQUIRE(o["key"] == std::string("value"));
+    }
   }
 
-  SECTION("ArrayAsString") {
-    DynamicJsonBuffer buffer;
-
-    JsonArray& arr = buffer.createArray();
+  SECTION("to<JsonArray>()") {
+    JsonArray arr = variant.to<JsonArray>();
     arr.add(4);
     arr.add(2);
 
-    JsonVariant variant = arr;
-    REQUIRE(std::string("[4,2]") == variant.as<std::string>());
+    SECTION("as<std::string>()") {
+      REQUIRE(variant.as<std::string>() == std::string("[4,2]"));
+    }
+
+    SECTION("as<JsonArray>()") {
+      JsonArray a = variant.as<JsonArray>();
+      REQUIRE(a.size() == 2);
+      REQUIRE(a[0] == 4);
+      REQUIRE(a[1] == 2);
+    }
   }
 
-  SECTION("ArrayAsJsonArray") {
-    DynamicJsonBuffer buffer;
-    JsonArray& arr = buffer.createArray();
-
-    JsonVariant variant = arr;
-    REQUIRE(&arr == &variant.as<JsonArray&>());
-    REQUIRE(&arr == &variant.as<JsonArray>());  // <- shorthand
+#if ARDUINOJSON_USE_LONG_LONG
+  SECTION("Smallest int64 negative") {
+    variant.set("-9223372036854775808");
+    REQUIRE(variant.as<long long>() == -9223372036854775807 - 1);
   }
 
-  SECTION("ObjectAsJsonObject") {
-    DynamicJsonBuffer buffer;
-    JsonObject& arr = buffer.createObject();
+  SECTION("Biggerst int64 positive") {
+    variant.set("9223372036854775807");
+    REQUIRE(variant.as<long long>() == 9223372036854775807);
+  }
+#endif
 
-    JsonVariant variant = arr;
-    REQUIRE(&arr == &variant.as<JsonObject&>());
-    REQUIRE(&arr == &variant.as<JsonObject>());  // <- shorthand
+  SECTION("should work on JsonVariantConst") {
+    variant.set("hello");
+
+    JsonVariantConst cvar = variant;
+
+    REQUIRE(cvar.as<bool>() == false);
+    REQUIRE(cvar.as<long>() == 0L);
+    REQUIRE(cvar.as<const char*>() == std::string("hello"));
+    REQUIRE(cvar.as<char*>() == std::string("hello"));
+    // REQUIRE(cvar.as<std::string>() == std::string("hello"));
   }
 }

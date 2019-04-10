@@ -1,5 +1,5 @@
 // ArduinoJson - arduinojson.org
-// Copyright Benoit Blanchon 2014-2018
+// Copyright Benoit Blanchon 2014-2019
 // MIT License
 
 #include <ArduinoJson.h>
@@ -8,47 +8,63 @@
 TEST_CASE("JsonVariant undefined") {
   JsonVariant variant;
 
-  SECTION("AsLongReturns0") {
-    REQUIRE(0 == variant.as<long>());
+  SECTION("as<T>()") {
+    SECTION("long") {
+      REQUIRE(variant.as<long>() == 0);
+    }
+
+    SECTION("unsigned") {
+      REQUIRE(variant.as<unsigned>() == 0);
+    }
+
+    SECTION("char*") {
+      REQUIRE(variant.as<char*>() == 0);
+    }
+
+    SECTION("double") {
+      REQUIRE(variant.as<double>() == 0);
+    }
+
+    SECTION("bool") {
+      REQUIRE(variant.as<bool>() == false);
+    }
+
+    SECTION("JsonArray") {
+      REQUIRE(variant.as<JsonArray>().isNull());
+    }
+
+    SECTION("JsonObject") {
+      REQUIRE(variant.as<JsonObject>().isNull());
+    }
   }
 
-  SECTION("AsUnsignedReturns0") {
-    REQUIRE(0 == variant.as<unsigned>());
-  }
+  SECTION("is<T>()") {
+    SECTION("long") {
+      REQUIRE(variant.is<long>() == false);
+    }
 
-  SECTION("AsStringReturnsNull") {
-    REQUIRE(0 == variant.as<char*>());
-  }
+    SECTION("unsigned") {
+      REQUIRE(variant.is<unsigned>() == false);
+    }
 
-  SECTION("AsDoubleReturns0") {
-    REQUIRE(0 == variant.as<double>());
-  }
+    SECTION("char*") {
+      REQUIRE(variant.is<char*>() == false);
+    }
 
-  SECTION("AsBoolReturnsFalse") {
-    REQUIRE(false == variant.as<bool>());
-  }
+    SECTION("double") {
+      REQUIRE(variant.is<double>() == false);
+    }
 
-  SECTION("AsArrayReturnInvalid") {
-    REQUIRE(JsonArray::invalid() == variant.as<JsonArray&>());
-  }
+    SECTION("bool") {
+      REQUIRE(variant.is<bool>() == false);
+    }
 
-  SECTION("AsConstArrayReturnInvalid") {
-    REQUIRE(JsonArray::invalid() == variant.as<const JsonArray&>());
-  }
+    SECTION("JsonArray") {
+      REQUIRE(variant.is<JsonArray>() == false);
+    }
 
-  SECTION("AsObjectReturnInvalid") {
-    REQUIRE(JsonObject::invalid() == variant.as<JsonObject&>());
-  }
-
-  SECTION("AsConstObjectReturnInvalid") {
-    REQUIRE(JsonObject::invalid() == variant.as<const JsonObject&>());
-  }
-
-  SECTION("AsArrayWrapperReturnInvalid") {
-    REQUIRE(JsonArray::invalid() == variant.as<JsonArray>());
-  }
-
-  SECTION("AsObjectWrapperReturnInvalid") {
-    REQUIRE(JsonObject::invalid() == variant.as<JsonObject>());
+    SECTION("JsonObject") {
+      REQUIRE(variant.is<JsonObject>() == false);
+    }
   }
 }

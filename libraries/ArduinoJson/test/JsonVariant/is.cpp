@@ -1,115 +1,162 @@
 // ArduinoJson - arduinojson.org
-// Copyright Benoit Blanchon 2014-2018
+// Copyright Benoit Blanchon 2014-2019
 // MIT License
 
 #include <ArduinoJson.h>
 #include <catch.hpp>
 
-void checkIsArray(JsonVariant var) {
-  REQUIRE(var.is<JsonArray>());
-  REQUIRE(var.is<JsonArray&>());
-  REQUIRE(var.is<const JsonArray>());
-  REQUIRE(var.is<const JsonArray&>());
+template <typename TVariant>
+void checkIsArray(TVariant var) {
+  REQUIRE(var.template is<JsonArray>());
 
-  REQUIRE_FALSE(var.is<bool>());
-  REQUIRE_FALSE(var.is<double>());
-  REQUIRE_FALSE(var.is<float>());
-  REQUIRE_FALSE(var.is<int>());
-  REQUIRE_FALSE(var.is<long>());
-  REQUIRE_FALSE(var.is<const char*>());
-  REQUIRE_FALSE(var.is<JsonObject>());
+  REQUIRE_FALSE(var.template is<bool>());
+  REQUIRE_FALSE(var.template is<double>());
+  REQUIRE_FALSE(var.template is<float>());
+  REQUIRE_FALSE(var.template is<int>());
+  REQUIRE_FALSE(var.template is<long>());
+  REQUIRE_FALSE(var.template is<const char *>());
+  REQUIRE_FALSE(var.template is<JsonObject>());
 }
 
-void checkIsBool(JsonVariant var) {
-  REQUIRE(var.is<bool>());
+void testArray(JsonArray value) {
+  DynamicJsonDocument doc(4096);
 
-  REQUIRE_FALSE(var.is<double>());
-  REQUIRE_FALSE(var.is<float>());
-  REQUIRE_FALSE(var.is<int>());
-  REQUIRE_FALSE(var.is<long>());
-  REQUIRE_FALSE(var.is<const char*>());
-  REQUIRE_FALSE(var.is<JsonArray>());
-  REQUIRE_FALSE(var.is<JsonObject>());
+  JsonVariant var = doc.to<JsonVariant>();
+  var.set(value);
+
+  checkIsArray(var);
+
+  JsonVariantConst cvar = var;
+  checkIsArray(cvar);
 }
 
-void checkIsFloat(JsonVariant var) {
-  REQUIRE(var.is<double>());
-  REQUIRE(var.is<float>());
+template <typename TVariant>
+void checkIsBool(TVariant var) {
+  REQUIRE(var.template is<bool>());
 
-  REQUIRE_FALSE(var.is<bool>());
-  REQUIRE_FALSE(var.is<int>());
-  REQUIRE_FALSE(var.is<long>());
-  REQUIRE_FALSE(var.is<const char*>());
-  REQUIRE_FALSE(var.is<JsonArray>());
-  REQUIRE_FALSE(var.is<JsonObject>());
+  REQUIRE_FALSE(var.template is<double>());
+  REQUIRE_FALSE(var.template is<float>());
+  REQUIRE_FALSE(var.template is<int>());
+  REQUIRE_FALSE(var.template is<long>());
+  REQUIRE_FALSE(var.template is<const char *>());
+  REQUIRE_FALSE(var.template is<JsonArray>());
+  REQUIRE_FALSE(var.template is<JsonObject>());
 }
 
-void checkIsInteger(JsonVariant var) {
-  REQUIRE(var.is<long>());
-  REQUIRE(var.is<int>());
-  REQUIRE(var.is<float>());
-  REQUIRE(var.is<double>());
+void testBool(bool value) {
+  DynamicJsonDocument doc(4096);
+  JsonVariant var = doc.to<JsonVariant>();
+  var.set(value);
 
-  REQUIRE_FALSE(var.is<bool>());
-  REQUIRE_FALSE(var.is<const char*>());
-  REQUIRE_FALSE(var.is<JsonArray>());
-  REQUIRE_FALSE(var.is<JsonObject>());
+  checkIsBool(var);
+  checkIsBool(JsonVariantConst(var));
 }
 
-void checkIsString(JsonVariant var) {
-  REQUIRE(var.is<const char*>());
+template <typename TVariant>
+void checkIsFloat(TVariant var) {
+  REQUIRE(var.template is<double>());
+  REQUIRE(var.template is<float>());
 
-  REQUIRE_FALSE(var.is<bool>());
-  REQUIRE_FALSE(var.is<int>());
-  REQUIRE_FALSE(var.is<double>());
-  REQUIRE_FALSE(var.is<float>());
-  REQUIRE_FALSE(var.is<long>());
-  REQUIRE_FALSE(var.is<JsonArray>());
-  REQUIRE_FALSE(var.is<JsonObject>());
+  REQUIRE_FALSE(var.template is<bool>());
+  REQUIRE_FALSE(var.template is<int>());
+  REQUIRE_FALSE(var.template is<long>());
+  REQUIRE_FALSE(var.template is<const char *>());
+  REQUIRE_FALSE(var.template is<JsonArray>());
+  REQUIRE_FALSE(var.template is<JsonObject>());
+}
+
+void testFloat(double value) {
+  DynamicJsonDocument doc(4096);
+  JsonVariant var = doc.to<JsonVariant>();
+  var.set(value);
+
+  checkIsFloat(var);
+  checkIsFloat(JsonVariantConst(var));
+}
+
+template <typename TVariant>
+void checkIsInteger(TVariant var) {
+  REQUIRE(var.template is<long>());
+  REQUIRE(var.template is<int>());
+  REQUIRE(var.template is<float>());
+  REQUIRE(var.template is<double>());
+
+  REQUIRE_FALSE(var.template is<bool>());
+  REQUIRE_FALSE(var.template is<const char *>());
+  REQUIRE_FALSE(var.template is<JsonArray>());
+  REQUIRE_FALSE(var.template is<JsonObject>());
+}
+
+template <typename T>
+void testInteger(T value) {
+  DynamicJsonDocument doc(4096);
+  JsonVariant var = doc.to<JsonVariant>();
+  var.set(value);
+
+  checkIsInteger(var);
+  checkIsInteger(JsonVariantConst(var));
+}
+
+template <typename TVariant>
+void checkIsString(TVariant var) {
+  REQUIRE(var.template is<const char *>());
+  REQUIRE(var.template is<std::string>());
+
+  REQUIRE_FALSE(var.template is<bool>());
+  REQUIRE_FALSE(var.template is<int>());
+  REQUIRE_FALSE(var.template is<double>());
+  REQUIRE_FALSE(var.template is<float>());
+  REQUIRE_FALSE(var.template is<long>());
+  REQUIRE_FALSE(var.template is<JsonArray>());
+  REQUIRE_FALSE(var.template is<JsonObject>());
+}
+
+void testString(const char *value) {
+  DynamicJsonDocument doc(4096);
+  JsonVariant var = doc.to<JsonVariant>();
+  var.set(value);
+
+  checkIsString(var);
+  checkIsString(JsonVariantConst(var));
 }
 
 TEST_CASE("JsonVariant::is()") {
-  DynamicJsonBuffer jsonBuffer;
-
   SECTION("JsonArray") {
-    checkIsArray(jsonBuffer.createArray());
+    DynamicJsonDocument doc(4096);
+    JsonArray array = doc.to<JsonArray>();
+    testArray(array);
   }
 
   SECTION("bool") {
-    checkIsBool(true);
-    checkIsBool(false);
+    testBool(true);
+    testBool(false);
   }
 
   SECTION("double") {
-    checkIsFloat(4.2);
+    testFloat(4.2);
   }
 
   SECTION("int") {
-    checkIsInteger(42);
+    testInteger(42);
   }
 
   SECTION("long") {
-    checkIsInteger(42L);
+    testInteger(42L);
   }
 
   SECTION("string") {
-    checkIsString("42");
+    testString("42");
   }
 
-  SECTION("unparsed bool") {
-    checkIsBool(RawJson("true"));
-    checkIsBool(RawJson("false"));
-  }
+  SECTION("null") {
+    DynamicJsonDocument doc(4096);
+    deserializeJson(doc, "[null]");
+    JsonVariant v = doc[0];
 
-  SECTION("unparsed int") {
-    checkIsInteger(RawJson("42"));
-  }
-
-  SECTION("unparsed float") {
-    checkIsFloat(RawJson("4.2e-10"));
-  }
-
-  SECTION("unparsed null") {
-    checkIsString(RawJson("null"));
+    REQUIRE(v.is<bool>() == false);
+    REQUIRE(v.is<char *>() == false);
+    REQUIRE(v.is<int>() == false);
+    REQUIRE(v.is<std::string>() == false);
+    REQUIRE(v.is<float>() == false);
   }
 }

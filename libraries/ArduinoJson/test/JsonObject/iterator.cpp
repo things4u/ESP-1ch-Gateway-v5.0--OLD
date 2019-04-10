@@ -1,5 +1,5 @@
 // ArduinoJson - arduinojson.org
-// Copyright Benoit Blanchon 2014-2018
+// Copyright Benoit Blanchon 2014-2019
 // MIT License
 
 #include <ArduinoJson.h>
@@ -8,44 +8,53 @@
 using namespace Catch::Matchers;
 
 TEST_CASE("JsonObject::begin()/end()") {
-  StaticJsonBuffer<JSON_OBJECT_SIZE(2)> jb;
-  JsonObject& obj = jb.createObject();
+  StaticJsonDocument<JSON_OBJECT_SIZE(2)> doc;
+  JsonObject obj = doc.to<JsonObject>();
   obj["ab"] = 12;
   obj["cd"] = 34;
 
   SECTION("NonConstIterator") {
     JsonObject::iterator it = obj.begin();
     REQUIRE(obj.end() != it);
-    REQUIRE_THAT(it->key, Equals("ab"));
-    REQUIRE(12 == it->value);
-    it->key = "a.b";
-    it->value = 1.2;
+    REQUIRE(it->key() == "ab");
+    REQUIRE(12 == it->value());
     ++it;
     REQUIRE(obj.end() != it);
-    REQUIRE_THAT(it->key, Equals("cd"));
-    REQUIRE(34 == it->value);
-    it->key = "c.d";
-    it->value = 3.4;
+    REQUIRE(it->key() == "cd");
+    REQUIRE(34 == it->value());
     ++it;
     REQUIRE(obj.end() == it);
-
-    REQUIRE(2 == obj.size());
-    REQUIRE(1.2 == obj["a.b"]);
-    REQUIRE(3.4 == obj["c.d"]);
   }
 
-  SECTION("ConstIterator") {
-    const JsonObject& const_object = obj;
-    JsonObject::const_iterator it = const_object.begin();
+  SECTION("Dereferencing end() is safe") {
+    REQUIRE(obj.end()->key().isNull());
+    REQUIRE(obj.end()->value().isNull());
+  }
+}
 
-    REQUIRE(const_object.end() != it);
-    REQUIRE_THAT(it->key, Equals("ab"));
-    REQUIRE(12 == it->value);
+TEST_CASE("JsonObjectConst::begin()/end()") {
+  StaticJsonDocument<JSON_OBJECT_SIZE(2)> doc;
+  JsonObject obj = doc.to<JsonObject>();
+  obj["ab"] = 12;
+  obj["cd"] = 34;
+
+  JsonObjectConst cobj = obj;
+
+  SECTION("NonConstIterator") {
+    JsonObjectConst::iterator it = cobj.begin();
+    REQUIRE(cobj.end() != it);
+    REQUIRE(it->key() == "ab");
+    REQUIRE(12 == it->value());
     ++it;
-    REQUIRE(const_object.end() != it);
-    REQUIRE_THAT(it->key, Equals("cd"));
-    REQUIRE(34 == it->value);
+    REQUIRE(cobj.end() != it);
+    REQUIRE(it->key() == "cd");
+    REQUIRE(34 == it->value());
     ++it;
-    REQUIRE(const_object.end() == it);
+    REQUIRE(cobj.end() == it);
+  }
+
+  SECTION("Dereferencing end() is safe") {
+    REQUIRE(cobj.end()->key().isNull());
+    REQUIRE(cobj.end()->value().isNull());
   }
 }

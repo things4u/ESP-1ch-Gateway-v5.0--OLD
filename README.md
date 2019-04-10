@@ -82,7 +82,6 @@ with this sketch in the libraries folder can be found by the compiler
 6. If not yet done: Load the support for ESP8266 in your IDE. <Tools><Board><Board Manager...>
 7. Load the other necessary libraries that are not shipped with this sketch in your IDE. 
 Goto <Sketch><Include Library><Manage Libraries...> in the IDE to do so. 
-- ArduinoJson (version 5.13.1)
 - WifiManager (Version 0.12.0 by Tzapu)
 8. Compile the code and download the executable over USB to the gateway. If all is right, you should
 see the gateway starting up on the Serial Monitor.

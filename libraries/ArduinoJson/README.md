@@ -2,7 +2,11 @@
 
 ---
 
-[![Build status](https://ci.appveyor.com/api/projects/status/m7s53wav1l0abssg/branch/master?svg=true)](https://ci.appveyor.com/project/bblanchon/arduinojson/branch/master) [![Build Status](https://travis-ci.org/bblanchon/ArduinoJson.svg?branch=master)](https://travis-ci.org/bblanchon/ArduinoJson) [![Coverage Status](https://img.shields.io/coveralls/bblanchon/ArduinoJson.svg)](https://coveralls.io/r/bblanchon/ArduinoJson?branch=master) [![Star this project](http://githubbadges.com/star.svg?user=bblanchon&repo=ArduinoJson&style=flat&color=fff&background=007ec6)](https://github.com/bblanchon/ArduinoJson)
+[![arduino-library-badge](https://www.ardu-badge.com/badge/ArduinoJson.svg?version=6.10.0)](https://www.ardu-badge.com/ArduinoJson/6.10.0)
+[![Build Status](https://ci.appveyor.com/api/projects/status/m7s53wav1l0abssg/branch/6.x?svg=true)](https://ci.appveyor.com/project/bblanchon/arduinojson/branch/6.x)
+[![Build Status](https://travis-ci.org/bblanchon/ArduinoJson.svg?branch=6.x)](https://travis-ci.org/bblanchon/ArduinoJson)
+[![Coverage Status](https://coveralls.io/repos/github/bblanchon/ArduinoJson/badge.svg?branch=6.x)](https://coveralls.io/github/bblanchon/ArduinoJson?branch=6.x)
+[![Star this project](http://githubbadges.com/star.svg?user=bblanchon&repo=ArduinoJson&style=flat&color=fff&background=007ec6)](https://github.com/bblanchon/ArduinoJson)
 
 ArduinoJson is a C++ JSON library for Arduino and IoT (Internet Of Things).
 
@@ -10,6 +14,7 @@ ArduinoJson is a C++ JSON library for Arduino and IoT (Internet Of Things).
 
 * JSON decoding (comments are supported)
 * JSON encoding (with optional indentation)
+* MessagePack
 * Elegant API, easy to use
 * Fixed memory allocation (zero malloc)
 * No data duplication (zero copy)
@@ -59,10 +64,10 @@ Here is a program that parses a JSON document with ArduinoJson.
 ```c++
 char json[] = "{\"sensor\":\"gps\",\"time\":1351824120,\"data\":[48.756080,2.302038]}";
 
-StaticJsonBuffer<200> jsonBuffer;
+DynamicJsonDocument doc(1024);
+deserializeJson(doc, json);
 
-JsonObject& root = jsonBuffer.parseObject(json);
-
+JsonObjectRef root = doc.as<JsonObject>();
 const char* sensor = root["sensor"];
 long time          = root["time"];
 double latitude    = root["data"][0];
@@ -76,17 +81,17 @@ See the [tutorial on arduinojson.org](https://arduinojson.org/doc/decoding/?utm_
 Here is a program that generates a JSON document with ArduinoJson:
 
 ```c++
-StaticJsonBuffer<200> jsonBuffer;
+DynamicJsonDocument doc(1024);
 
-JsonObject& root = jsonBuffer.createObject();
+JsonObject root = doc.to<JsonObject>();
 root["sensor"] = "gps";
 root["time"] = 1351824120;
 
-JsonArray& data = root.createNestedArray("data");
+JsonArray data = root.createNestedArray("data");
 data.add(48.756080);
 data.add(2.302038);
 
-root.printTo(Serial);
+serializeJson(doc, Serial);
 // This prints:
 // {"sensor":"gps","time":1351824120,"data":[48.756080,2.302038]}
 ```

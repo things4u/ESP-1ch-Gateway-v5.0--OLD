@@ -1,30 +1,39 @@
 // ArduinoJson - arduinojson.org
-// Copyright Benoit Blanchon 2014-2018
+// Copyright Benoit Blanchon 2014-2019
 // MIT License
 
 #include <ArduinoJson.h>
 #include <catch.hpp>
 
 TEST_CASE("JsonObject::containsKey()") {
-  DynamicJsonBuffer _jsonBuffer;
-  JsonObject& _object = _jsonBuffer.createObject();
+  DynamicJsonDocument doc(4096);
+  JsonObject obj = doc.to<JsonObject>();
+  obj["hello"] = 42;
 
-  SECTION("ContainsKeyReturnsFalseForNonExistingKey") {
-    _object.set("hello", 42);
-
-    REQUIRE(false == _object.containsKey("world"));
+  SECTION("returns true only if key is present") {
+    REQUIRE(false == obj.containsKey("world"));
+    REQUIRE(true == obj.containsKey("hello"));
   }
 
-  SECTION("ContainsKeyReturnsTrueForDefinedValue") {
-    _object.set("hello", 42);
-
-    REQUIRE(true == _object.containsKey("hello"));
+  SECTION("works with JsonObjectConst") {
+    JsonObjectConst cobj = obj;
+    REQUIRE(false == cobj.containsKey("world"));
+    REQUIRE(true == cobj.containsKey("hello"));
   }
 
-  SECTION("ContainsKeyReturnsFalseAfterRemove") {
-    _object.set("hello", 42);
-    _object.remove("hello");
+  SECTION("returns false after remove()") {
+    obj.remove("hello");
 
-    REQUIRE(false == _object.containsKey("hello"));
+    REQUIRE(false == obj.containsKey("hello"));
   }
+
+#ifdef HAS_VARIABLE_LENGTH_ARRAY
+  SECTION("key is a VLA") {
+    int i = 16;
+    char vla[i];
+    strcpy(vla, "hello");
+
+    REQUIRE(true == obj.containsKey(vla));
+  }
+#endif
 }

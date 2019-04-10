@@ -16,7 +16,7 @@ Maintained by Maarten Westenberg (mw12554@hotmail.com)For information on install
 
 These are the libraries you need for compiling the Gateway:
 
-- ArduinoJson (version 1.51)				-> ArduinoJson.h
+- ArduinoJson (version 6.10.0)				-> ArduinoJson.h
 - ESP8266 Oled library SH1106, (V 4.0.0 by Weinberg)	-> sh1106.h
 - ESP8266 Oled library SSD1306 (V 4.0.0 by Weinberg)	-> ssd1306.h
 - WifiManager (Version 0.12.0 by Tzapu)			-> WiFiManager.h

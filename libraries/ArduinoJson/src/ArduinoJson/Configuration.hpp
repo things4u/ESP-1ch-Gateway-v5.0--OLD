@@ -1,8 +1,20 @@
 // ArduinoJson - arduinojson.org
-// Copyright Benoit Blanchon 2014-2018
+// Copyright Benoit Blanchon 2014-2019
 // MIT License
 
 #pragma once
+
+#if defined(_MSC_VER)
+#define ARDUINOJSON_HAS_INT64 1
+#else
+#define ARDUINOJSON_HAS_INT64 0
+#endif
+
+#if __cplusplus >= 201103L
+#define ARDUINOJSON_HAS_LONG_LONG 1
+#else
+#define ARDUINOJSON_HAS_LONG_LONG 0
+#endif
 
 // Small or big machine?
 #ifndef ARDUINOJSON_EMBEDDED_MODE
@@ -24,9 +36,6 @@
 // Store longs by default, because they usually match the size of a float.
 #ifndef ARDUINOJSON_USE_LONG_LONG
 #define ARDUINOJSON_USE_LONG_LONG 0
-#endif
-#ifndef ARDUINOJSON_USE_INT64
-#define ARDUINOJSON_USE_INT64 0
 #endif
 
 // Embedded systems usually don't have std::string
@@ -53,19 +62,10 @@
 
 // Use long long when available
 #ifndef ARDUINOJSON_USE_LONG_LONG
-#if __cplusplus >= 201103L || (defined(_MSC_VER) && _MSC_VER >= 1800)
+#if ARDUINOJSON_HAS_LONG_LONG || ARDUINOJSON_HAS_INT64
 #define ARDUINOJSON_USE_LONG_LONG 1
 #else
 #define ARDUINOJSON_USE_LONG_LONG 0
-#endif
-#endif
-
-// Use _int64 on old versions of Visual Studio
-#ifndef ARDUINOJSON_USE_INT64
-#if defined(_MSC_VER) && _MSC_VER <= 1700
-#define ARDUINOJSON_USE_INT64 1
-#else
-#define ARDUINOJSON_USE_INT64 0
 #endif
 #endif
 
@@ -120,19 +120,9 @@
 #endif
 #endif
 
-#ifndef ARDUINOJSON_ENABLE_ALIGNMENT
-#ifdef ARDUINO_ARCH_AVR
-// alignment isn't needed for 8-bit AVR
-#define ARDUINOJSON_ENABLE_ALIGNMENT 0
-#else
-// but most processors need pointers to be align on word size
-#define ARDUINOJSON_ENABLE_ALIGNMENT 1
-#endif
-#endif
-
-// Enable deprecated functions by default
-#ifndef ARDUINOJSON_ENABLE_DEPRECATED
-#define ARDUINOJSON_ENABLE_DEPRECATED 1
+// Convert unicode escape sequence (\u0123) to UTF-8
+#ifndef ARDUINOJSON_DECODE_UNICODE
+#define ARDUINOJSON_DECODE_UNICODE 0
 #endif
 
 // Control the exponentiation threshold for big numbers
@@ -146,6 +136,16 @@
 #define ARDUINOJSON_NEGATIVE_EXPONENTIATION_THRESHOLD 1e-5
 #endif
 
-#if ARDUINOJSON_USE_LONG_LONG && ARDUINOJSON_USE_INT64
-#error ARDUINOJSON_USE_LONG_LONG and ARDUINOJSON_USE_INT64 cannot be set together
+#ifndef ARDUINOJSON_LITTLE_ENDIAN
+#if defined(_MSC_VER) ||                                                      \
+    (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) || \
+    defined(__LITTLE_ENDIAN__) || defined(__i386) || defined(__x86_64)
+#define ARDUINOJSON_LITTLE_ENDIAN 1
+#else
+#define ARDUINOJSON_LITTLE_ENDIAN 0
+#endif
+#endif
+
+#ifndef ARDUINOJSON_TAB
+#define ARDUINOJSON_TAB "  "
 #endif

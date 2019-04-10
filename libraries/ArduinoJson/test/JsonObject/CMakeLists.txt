@@ -1,18 +1,21 @@
 # ArduinoJson - arduinojson.org
-# Copyright Benoit Blanchon 2014-2018
+# Copyright Benoit Blanchon 2014-2019
 # MIT License
 
 add_executable(JsonObjectTests 
-	basics.cpp
 	containsKey.cpp
-	get.cpp
+	copy.cpp
+	createNestedArray.cpp
+	createNestedObject.cpp
+	equals.cpp
 	invalid.cpp
+	isNull.cpp
 	iterator.cpp
-	prettyPrintTo.cpp
-	printTo.cpp
+	memoryUsage.cpp
+	nesting.cpp
 	remove.cpp
-	set.cpp
 	size.cpp
+	std_string.cpp
 	subscript.cpp
 )
 
