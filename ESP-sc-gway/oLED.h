@@ -46,16 +46,21 @@
 #define OLED_SDA 4								// GPIO4 / 
 #define OLED_RST 16								// Reset pin (Some OLED displays do not have it)
 
+#elif _PIN_OUT==5                // TTGO (onboard version used, also for DIY)
+#define OLED_SCL 15               // GPIO15 / 
+#define OLED_SDA 4                // GPIO4 / 
+#define OLED_RST 14               // Reset pin (Some OLED displays do not have it)
+
 #endif
 
 
-// --------------------------------------------------------	
+// --------------------------------------------------------  
 // Define the different OLED versions
 //
 #if OLED==1
 #include "SSD1306.h"
-#define OLED_ADDR 0x3C							// Default 0x3C for 0.9", for 1.3" it is 0x78
-SSD1306  display(OLED_ADDR, OLED_SDA, OLED_SCL);// i2c ADDR & SDA, SCL on wemos
+#define OLED_ADDR 0x3C              // Default 0x3C for 0.9", for 1.3" it is 0x78
+SSD1306  display(OLED_ADDR, OLED_SDA, OLED_SCL,OLED_RST);// i2c ADDR & SDA, SCL on wemos
 #endif
 
 // This is an 1.3" OLED display which is running on I2C
