@@ -84,9 +84,10 @@
 //	1: HALLARD
 //	2: COMRESULT pin out
 //	3: ESP32 Wemos pin out
-//	4: ESP32 TTGO pinning (should work for 433 and OLED too).
+//	4: ESP32 TTGO (including Heltec V1) pinning (should work for 433 and OLED too).
 //	5: ESP32 TTGO EU433 MHz with OLED
-//	6: Other, define your own in loraModem.h
+//	6: ESP32 Heltec V2 board (different Pinning than Heltec V1)
+//	7: Other, define your own in loraModem.h
 #define _PIN_OUT 1
 
 // Gather statistics on sensor and Wifi status

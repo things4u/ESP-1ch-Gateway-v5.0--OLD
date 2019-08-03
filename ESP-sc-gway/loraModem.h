@@ -182,7 +182,7 @@ struct pins {
 struct pins {
 	uint8_t dio0=26;		// GPIO26 / Dio0 used for one frequency and one SF
 	uint8_t dio1=26;		// GPIO26 / Used for CAD, may or not be shared with DIO0
-	uint8_t dio2=26;		// GPI2O6 / Used for frequency hopping, don't care
+	uint8_t dio2=26;		// GPIO26 / Used for frequency hopping, don't care
 	uint8_t ss=18;			// GPIO18 / Dx. Select pin connected to GPIO18
 	uint8_t rst=14;			// GPIO0  / D3. Reset pin not used	
 } pins;
@@ -190,7 +190,7 @@ struct pins {
 
 #elif _PIN_OUT==4
 // ----------------------------------------------------------------------------
-// For ESP32/TTGO based board.
+// For ESP32/TTGO based (including Heltec V1) board.
 // SCK  == GPIO5/ PIN5
 // SS   == GPIO18/PIN18 CS
 // MISO == GPIO19/ PIN19
@@ -198,8 +198,8 @@ struct pins {
 // RST  == GPIO14/ PIN14
 struct pins {
 	uint8_t dio0=26;		// GPIO26 / Dio0 used for one frequency and one SF
-	uint8_t dio1=33;		// GPIO26 / Used for CAD, may or not be shared with DIO0
-	uint8_t dio2=32;		// GPIO26 / Used for frequency hopping, don't care
+	uint8_t dio1=33;		// GPIO33 / Used for CAD, may or not be shared with DIO0
+	uint8_t dio2=32;		// GPIO32 / Used for frequency hopping, don't care
 	uint8_t ss=18;			// GPIO18 / Dx. Select pin connected to GPIO18
 	uint8_t rst=14;			// GPIO0  / D3. Reset pin not used	
 } pins;
@@ -224,8 +224,8 @@ struct pins {
 // RST  == GPIO14/ PIN14
 struct pins {
 	uint8_t dio0=26;		// GPIO26 / Dio0 used for one frequency and one SF
-	uint8_t dio1=33;		// GPIO26 / Used for CAD, may or not be shared with DIO0
-	uint8_t dio2=32;		// GPIO26 / Used for frequency hopping, don't care
+	uint8_t dio1=33;		// GPIO33 / Used for CAD, may or not be shared with DIO0
+	uint8_t dio2=32;		// GPIO32 / Used for frequency hopping, don't care
 	uint8_t ss=18;			// GPIO18 / Dx. Select pin connected to GPIO18
 	uint8_t rst=14;			// GPIO0 / D3. Reset pin not used	
 } pins;
@@ -233,6 +233,27 @@ struct pins {
 #define MISO 19				// Check
 #define MOSI 27				// Check
 #define RST 14				// Check
+#define SS 18
+
+#elif _PIN_OUT==6
+// ----------------------------------------------------------------------------
+// For ESP32 Heltec V2 board (different Pinning than Heltec V1).
+// SCK  == GPIO5/ PIN5
+// SS   == GPIO18/PIN18 CS
+// MISO == GPIO19/ PIN19
+// MOSI == GPIO27/ PIN27
+// RST  == GPIO14/ PIN14
+struct pins {
+	uint8_t dio0=26;		// GPIO26 / Dio0 used for one frequency and one SF
+	uint8_t dio1=35;		// GPIO35 / Used for CAD, may or not be shared with DIO0
+	uint8_t dio2=34;		// GPIO34 / Used for frequency hopping, don't care
+	uint8_t ss=18;			// GPIO18 / Dx. Select pin connected to GPIO18
+	uint8_t rst=14;			// GPIO0  / D3. Reset pin not used	
+} pins;
+#define SCK 5
+#define MISO 19
+#define MOSI 27
+#define RST 14
 #define SS 18
 
 #else
