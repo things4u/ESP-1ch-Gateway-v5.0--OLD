@@ -41,7 +41,7 @@
 // Normally, value 0 is a good default.
 #define _SPIFF_FORMAT 0
 
-// Define the LoRa Frequncy band that is used. TTN Supported values are 915MHz, 868MHz and 433MHz.
+// Define the LoRa Frequency band that is used. TTN Supported values are 915MHz, 868MHz and 433MHz.
 // So supported values are: 433 868 915
 #define _LFREQ 868
 
